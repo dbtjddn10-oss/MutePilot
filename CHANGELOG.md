@@ -75,6 +75,11 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * 선택한 테마를 기존 JSON 설정에 호환되는 `theme` 필드로 저장하고 재시작 시 복원하는 기능 추가
 * Master와 각 앱 볼륨 프리셋 옆에 0~100 정수 입력 칸과 Enter 확인 경로 추가
 * 최종 아이콘을 둘 `src/MutePilot/Assets/` 구조와 예상 파일 이름 문서 추가
+* active audio session의 process 실행 파일에서 Windows 연결 아이콘을 추출하고 실행 파일 경로·앱 이름별로 재사용하는 메모리 cache 추가
+* 실행 파일 접근 실패와 실행 중이 아닌 저장 앱에 사용할 공통 fallback 아이콘 추가
+* 일반 화면의 Overlay 행에서 Master와 실행 중 앱을 음소거/해제하는 작은 audio 버튼 추가
+* MutePilot은 종료하지 않고 Overlay만 OFF로 바꾸는 HUD 닫기 버튼 추가
+* 대시보드 상단에서 Overlay를 바로 켜고 끄거나 현재 권한에 맞는 재시작 흐름을 시작하는 quick control 추가
 
 ### 변경
 
@@ -89,6 +94,12 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * 메인 창을 카드형 사이드바 대시보드로 다시 배치하고 공통 버튼·입력·panel 스타일을 재사용하도록 변경
 * 볼륨 프리셋 범위를 0~100%로 맞추고 slider와 숫자 입력이 양방향으로 동기화되도록 변경
 * 잘못된 숫자 입력은 저장하거나 실제 오디오에 적용하지 않고 한국어 검증 메시지를 표시하도록 변경
+* Sidebar 탐색을 `홈 / 대시보드`와 `실행 설정` 두 항목으로 줄이고 Master·Application Audio는 대시보드, Overlay·실행·About은 실행 설정에 배치
+* 기본 창을 1100×740 WPF DIP로 조정하고 작은 monitor에서는 work area 안으로 맞추도록 변경
+* 화면 theme selector를 짧은 한국어 label, 둥근 테두리, hover·selected 상태를 가진 custom WPF control로 변경
+* Overlay 잠금을 전체 click-through가 아닌 위치 잠금으로 정리해 일반 화면에서는 잠금 중에도 audio·닫기 버튼을 사용할 수 있도록 변경
+* fullscreen에서는 저장된 잠금 설정을 바꾸지 않고 control을 숨기며 전체 HUD에 `WS_EX_TRANSPARENT`를 적용하는 기존 display-only 동작 유지
+* 관리자 상태 quick control은 일반 권한에서 기존 `runas` UAC 재시작을 사용하고, 관리자 권한에서는 Windows Explorer shell을 통한 일반 권한 재시작을 요청하도록 변경
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 
@@ -109,3 +120,7 @@ W, S, Space, Escape와 modifier 조합이 같은 virtual-key 표현으로 만들
 v0.8 GUI에서 다크·화이트·핑크 테마의 실시간 전환과 핑크 테마 재시작 복원을 확인했습니다. `theme` 필드가 없던 실제 기존 설정은 다크모드와 기존 F1~F4 단축키로 로드됐고, 시작만으로 파일 hash가 바뀌지 않았습니다. Master와 앱 입력에 30을 넣었을 때 slider와 설정이 함께 바뀌고, slider 변경도 숫자 칸에 반영됐습니다. 0과 공백 제거는 정상 처리됐으며 빈 값, 101, 소수와 문자는 기존 값을 유지하고 오류를 표시했습니다. 검증 뒤 실제 설정 파일은 원래 byte와 SHA-256으로 복구했습니다.
 
 `dotnet restore`와 `dotnet build`는 경고 0개, 오류 0개로 성공했습니다. GUI 실행, 기존 hotkey 표시, X를 눌렀을 때 tray process와 overlay 유지, startup/elevation UI와 `Made by 유성우`를 다시 확인했습니다. 이번 v0.8 작업에서는 실제 오디오 전환이나 SuddenAttack을 다시 수동 테스트하지 않았습니다. 확정된 아이콘 원본이 없어 아이콘 파일은 아직 적용하지 않았습니다.
+
+v0.8 UI 보완 뒤 1100×740 기본 창에서 Master card와 앱 행 두 개가 완전히 보이는 것을 확인했습니다. 같은 MainWindow 안에서 대시보드와 실행 설정을 전환했고, 실행 설정에는 Overlay·Windows 시작·권한·About이 함께 표시됐습니다. Dark·Light·Pink rendering과 theme 재시작 복원, 앱 아이콘 추출·cache·fallback, helper 문구, 기존 F1~F4 설정, 숫자 입력과 slider 동기화, X→tray 단일 process 유지도 로컬에서 확인했습니다.
+
+일반 화면에서 잠긴 Overlay의 native click-through가 해제되고 audio·닫기 버튼이 활성인 것을 확인했습니다. Overlay의 Master 버튼으로 실제 master mute 상태를 바꾼 뒤 원래 상태로 복원했고, HUD `×`가 Overlay 설정·대시보드 quick button·실행 설정 표시를 모두 OFF로 맞췄습니다. 실제 SuddenAttack fullscreen click-through, Alt+Tab 뒤 앱별 Overlay 버튼, 게임 중 HUD 닫기 동기화, 게임 안의 사용자 단축키와 UAC가 필요한 권한 재시작은 이번 작업에서 다시 수동 확인하지 않았습니다.

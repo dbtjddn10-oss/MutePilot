@@ -8,7 +8,8 @@
         MinHeight="460"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBackgroundBrush}"
-        Foreground="{StaticResource PrimaryTextBrush}">
+        Foreground="{StaticResource PrimaryTextBrush}"
+        Loaded="MainWindow_Loaded">
     <Grid Margin="28,24,28,18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -36,16 +37,25 @@
                     <TextBlock FontSize="17"
                                FontWeight="SemiBold"
                                Text="Master Audio" />
-                    <TextBlock Margin="0,8,0,14"
+                    <TextBlock x:Name="MasterAudioStatusText"
+                               Margin="0,8,0,14"
                                FontSize="13"
                                Foreground="{StaticResource SecondaryTextBrush}"
-                               Text="Master mute control will be added in a later step."
+                               Text="현재 상태: 확인 중"
                                TextWrapping="Wrap" />
-                    <Button Width="160"
+                    <Button x:Name="MasterMuteButton"
+                            Width="160"
                             Height="32"
                             HorizontalAlignment="Left"
-                            Content="Not implemented yet"
+                            Click="MasterMuteButton_Click"
+                            Content="상태 확인 중"
                             IsEnabled="False" />
+                    <TextBlock x:Name="AudioErrorText"
+                               Margin="0,12,0,0"
+                               FontSize="12"
+                               Foreground="#FCA5A5"
+                               TextWrapping="Wrap"
+                               Visibility="Collapsed" />
                 </StackPanel>
             </Border>
 

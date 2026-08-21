@@ -85,6 +85,6 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 
 시스템 트레이 기능은 실제 PC에서 X를 누른 뒤 main window만 숨고 process, tray icon, persistent HUD가 남는 것을 확인했습니다. 숨겨진 상태에서도 SuddenAttack 단독 F8 음소거·해제와 HUD 갱신이 계속 동작했습니다. Icon double-click 복원, 반복 hide/show, 트레이 `종료` 시 process·overlay·icon 정리도 정상 동작했습니다.
 
-일반 GUI의 startup UI와 일반 권한 표시, 실제 task OFF 조회, `--background` 창 숨김, overlay OFF/ON 복원, normal/background 중복 실행 종료, Mutex handoff 뒤 단일 process·tray 유지를 검증했습니다. 현재 일반 권한 환경의 `Highest` task 생성 시도는 Windows가 access denied로 차단했고 작업은 생성되지 않았습니다. 실제 UAC 승인에 따른 task 생성·삭제, Windows 로그인 자동 실행과 elevated 재실행은 아직 수동 검증하지 않았습니다.
+일반 GUI의 startup UI와 권한 표시, `--background` 창 숨김, overlay OFF/ON 복원, normal/background 중복 실행 종료, Mutex handoff 뒤 단일 process·tray 유지를 검증했습니다. 이후 실제 PC에서 관리자 권한 재시작과 `Highest` 자동 시작 작업을 확인했고, Windows 재부팅·로그인 뒤 MutePilot이 관리자 권한의 background/tray 상태로 자동 실행되는 것도 수동 검증했습니다.
 
-안전한 무음 Windows 오디오 session으로 일반 상태와 원래 음소거 상태 복원, 프리셋 중 별도 음소거, 활성 중 slider 변경, session 재시작, 서로 다른 두 session의 개별 복원을 확인했습니다. X로 메인 창을 tray에 숨긴 상태에서도 전용 단축키가 같은 기본 상태를 복원했고 HUD가 실제 볼륨을 갱신했습니다. 실제 SuddenAttack의 F1 음소거·F2 프리셋 toggle과 관리자 권한·tray 조합은 아직 수동 검증하지 않았습니다.
+안전한 무음 Windows 오디오 session으로 일반 상태와 원래 음소거 상태 복원, 프리셋 중 별도 음소거, 활성 중 slider 변경, session 재시작, 서로 다른 두 session의 개별 복원을 확인했습니다. 실제 SuddenAttack에서도 음소거 단축키, 볼륨 프리셋 toggle, 원래 볼륨과 원래 음소거 상태 복원이 정상 동작했습니다. Tray에 숨긴 상태와 자동 시작된 관리자 권한 MutePilot에서도 단축키가 동작하고 HUD가 실제 상태를 갱신하는 것을 수동 확인했습니다.

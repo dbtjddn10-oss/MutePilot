@@ -62,9 +62,9 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 
 개발 중 자동 시작을 켜면 현재 `bin/Debug` 또는 `bin/Release` 실행 파일 경로가 그대로 등록됩니다. 빌드 위치를 옮기거나 파일을 지우면 작업이 유효하지 않을 수 있으므로 OFF/ON으로 다시 등록해야 합니다. 최종 배포 단계에서는 고정된 설치 경로를 마련할 예정입니다.
 
-일반 GUI, 권한 표시, `--background`, overlay OFF/ON 복원, tray 복원, normal/background 중복 실행 차단과 Mutex handoff는 실제 Windows에서 확인했습니다. 현재 환경에서는 highest task 생성이 UAC 승인을 요구해 실제 task 생성·삭제, Windows 재로그인 자동 실행, elevated 재실행, 자동 시작된 관리자 인스턴스의 SuddenAttack F8은 아직 수동 검증하지 않았습니다. 테스트 뒤 `MutePilot Startup` 작업은 없는 OFF 상태입니다.
+일반 GUI와 권한 표시뿐 아니라 정상 UAC를 거친 관리자 권한 재시작도 실제 Windows에서 확인했습니다. `MutePilot Startup` 작업을 켠 뒤 Windows를 재부팅하고 다시 로그인했을 때 MutePilot이 관리자 권한의 background/tray 상태로 자동 시작됐습니다. 자동 시작된 상태에서도 SuddenAttack 음소거 단축키와 볼륨 프리셋 toggle, tray에 숨긴 상태의 단축키, HUD 갱신이 정상 동작했습니다.
 
-**Windows 자동 시작·관리자 권한·단일 실행: 구현 완료 / UAC 및 실제 로그인 수동 검증 필요**
+**Windows 자동 시작·관리자 권한·단일 실행: 구현 및 실제 재부팅·로그인 수동 검증 완료**
 
 Master Audio와 저장된 각 애플리케이션에는 기존 음소거 단축키와 별도로 1~100% 범위의 볼륨 프리셋과 전용 단축키를 설정할 수 있습니다. 기존 v0.5에서는 버튼이나 단축키를 누를 때마다 고정값을 적용했지만, v0.6부터는 프리셋과 적용 직전의 실제 소리 상태를 오가는 toggle로 동작합니다. 첫 실행은 현재 볼륨과 음소거 여부를 기억한 뒤 프리셋을 적용하고 음소거를 해제하며, 두 번째 실행은 두 값을 함께 복원합니다.
 
@@ -78,9 +78,11 @@ Master Audio는 현재 기본 Windows playback endpoint의 scalar volume과 장�
 
 메인 화면과 HUD에는 현재 볼륨이 표시됩니다. 여러 session의 값이 다르면 앱 목록에는 `혼합`으로 보이고, 프리셋 적용 뒤에는 지정한 퍼센트로 갱신됩니다. HUD는 음소거 해제 상태를 `🔊 25%`처럼 작게 표시하고 음소거 상태에서도 저장된 현재 볼륨을 함께 보여 줍니다.
 
-현재 Windows에서 기존 형식의 설정 파일이 변경 없이 로드되는 것과 slider 편집만으로 실제 오디오가 바뀌지 않는 것을 다시 확인했습니다. 안전한 무음 test session으로 일반 복원, 원래 음소거 상태 복원, 프리셋 중 음소거 뒤 복원, slider 변경 뒤 기존 기본값 복원, 앱 session 재시작 시 이전 상태 폐기, 서로 다른 두 session의 정확한 개별 복원을 검증했습니다. X로 창을 숨긴 뒤에도 같은 프리셋 상태가 유지되어 전용 단축키로 원래 80%를 복원했고 HUD도 실제 상태를 갱신했습니다. 실제 SuddenAttack에서 F1 음소거와 F2 프리셋 toggle을 함께 사용하는 동작은 아직 수동 검증이 필요합니다.
+현재 Windows에서 기존 형식의 설정 파일이 변경 없이 로드되는 것과 slider 편집만으로 실제 오디오가 바뀌지 않는 것을 다시 확인했습니다. 안전한 무음 test session으로 일반 복원, 원래 음소거 상태 복원, 프리셋 중 음소거 뒤 복원, slider 변경 뒤 기존 기본값 복원, 앱 session 재시작 시 이전 상태 폐기, 서로 다른 두 session의 정확한 개별 복원을 검증했습니다. X로 창을 숨긴 뒤에도 같은 프리셋 상태가 유지되어 전용 단축키로 원래 80%를 복원했고 HUD도 실제 상태를 갱신했습니다.
 
-**볼륨 프리셋 원래 상태 복원: 구현 및 안전한 Windows 세션 검증 완료 / 실제 게임 수동 검증 필요**
+실제 SuddenAttack에서도 음소거 단축키와 볼륨 프리셋 toggle이 정상 동작했습니다. 프리셋 적용 뒤 원래 볼륨으로 돌아가는 것과 원래 음소거 상태까지 함께 복원되는 것을 확인했고, MutePilot을 tray에 숨긴 상태와 Windows 로그인 때 자동 시작된 관리자 권한 상태에서도 단축키와 HUD가 계속 동작했습니다.
+
+**볼륨 프리셋 원래 상태 복원: 구현 및 SuddenAttack 수동 검증 완료**
 
 ## 앞으로 구현할 기능
 
@@ -94,10 +96,10 @@ Master Audio는 현재 기본 Windows playback endpoint의 scalar volume과 장�
 * 오버레이 위치 이동·잠금·20~100% 투명도 설정 — 구현 및 실제 PC 수동 검증 완료
 * fullscreen foreground에서 자동 display-only·click-through 전환 — 구현 및 SuddenAttack 수동 검증 완료
 * X 버튼으로 메인 창을 숨기고 시스템 트레이에서 계속 실행 — 구현 및 실제 PC 수동 검증 완료
-* Task Scheduler 기반 Windows 자동 시작과 `--background` 실행 — 구현 완료, 실제 로그인 수동 검증 필요
-* 관리자 권한 상태 표시와 명시적 관리자 재실행 — 구현 완료, UAC 수동 검증 필요
+* Task Scheduler 기반 Windows 자동 시작과 `--background` 실행 — 구현 및 재부팅·로그인 수동 검증 완료
+* 관리자 권한 상태 표시와 명시적 관리자 재실행 — 구현 및 실제 UAC 수동 검증 완료
 * 사용자 session별 단일 실행 보호 — 구현 및 중복 실행 검증 완료
-* Master·애플리케이션별 볼륨 프리셋 toggle과 원래 상태 복원 — 구현 및 안전한 오디오 session 검증 완료, 실제 게임 수동 검증 필요
+* Master·애플리케이션별 볼륨 프리셋 toggle과 원래 상태 복원 — 구현 및 SuddenAttack 수동 검증 완료
 
 연속적인 볼륨 증가·감소 조절은 현재 범위에 포함하지 않습니다. 볼륨 기능은 저장한 프리셋과 적용 직전의 실제 상태를 오가는 방식만 제공합니다.
 
@@ -131,9 +133,9 @@ Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능�
 8. 선택형 음소거 상태 오버레이 구현 — 고정형 HUD 개선 및 SuddenAttack 수동 검증 완료
 9. 오버레이 위치·잠금·투명도 설정과 fullscreen display-only 처리 — 구현 및 SuddenAttack 수동 검증 완료
 10. 시스템 트레이 백그라운드 동작 — 구현 및 SuddenAttack 수동 검증 완료
-11. Windows 로그인 시 자동 실행, 관리자 권한 UX, background 시작, 단일 실행 보호 — 구현 완료, UAC·로그인 수동 검증 필요
+11. Windows 로그인 시 자동 실행, 관리자 권한 UX, background 시작, 단일 실행 보호 — 구현 및 실제 재부팅·로그인 수동 검증 완료
 12. Master·앱별 볼륨 프리셋과 전용 단축키 — 구현 완료
-13. 프리셋 적용 직전의 볼륨·음소거 상태 복원 — 구현 및 안전한 세션 검증 완료, 실제 게임 수동 검증 필요
+13. 프리셋 적용 직전의 볼륨·음소거 상태 복원 — 구현 및 SuddenAttack 수동 검증 완료
 14. 최종 UI/아이콘 정리와 Release 배포 구조 준비
 
 ## 작성자

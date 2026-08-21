@@ -67,7 +67,7 @@
                         <ComboBoxItem Tag="Pink" Content="핑크" />
                     </ComboBox>
                     <TextBlock Margin="4,11,0,0" FontSize="10.5"
-                               Foreground="{DynamicResource MutedTextBrush}" Text="MutePilot v0.8" />
+                               Foreground="{DynamicResource MutedTextBrush}" Text="MutePilot v1.0" />
                     <TextBlock Margin="4,3,0,0" FontSize="11"
                                Foreground="{DynamicResource SecondaryTextBrush}" Text="Made by 유성우" />
                 </StackPanel>
@@ -536,7 +536,7 @@
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                     <TextBlock HorizontalAlignment="Right" FontSize="11"
-                                               Foreground="{DynamicResource SecondaryTextBrush}" Text="Version v0.8.0" />
+                                               Foreground="{DynamicResource SecondaryTextBrush}" Text="Version v1.0.0" />
                                     <StackPanel Margin="0,5,0,0" Orientation="Horizontal"
                                                 HorizontalAlignment="Right" VerticalAlignment="Center">
                                         <TextBlock Margin="0,0,8,0" VerticalAlignment="Center"

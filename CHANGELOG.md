@@ -81,10 +81,10 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * MutePilot은 종료하지 않고 Overlay만 OFF로 바꾸는 HUD 닫기 버튼 추가
 * 대시보드 상단에서 Overlay를 바로 켜고 끄거나 현재 권한에 맞는 재시작 흐름을 시작하는 quick control 추가
 * Overlay를 OFF로 바꾸지 않고 176×46 mini-HUD로 접고 같은 window를 다시 펼치는 runtime-only control 추가
-* About의 `Made by 유성우`에서 여는 개발 후원 창과 정확한 은행·계좌번호·예금주 표시 추가
-* `QRCoder 1.8.0`으로 계좌정보 텍스트를 로컬 QR로 만드는 기능과 QR 생성 실패 fallback 추가
+* About의 일반 저자 표기 `Made by 유성우` 옆에 별도 `후원하기` 버튼과 개발 후원 창 추가
+* Toss에서 생성한 `toss-support-qr.jpg`를 우선 표시하고, 파일을 읽지 못할 때 QRCoder 계좌정보 QR로 돌아가는 fallback 추가
 * 계좌번호를 clipboard에 넣고 창 안에 한국어 성공·실패 결과를 표시하는 복사 버튼 추가
-* 실제 `app-icon.ico`·`brand-icon.png`가 준비됐을 때 executable·MainWindow·tray·About에서 사용하는 조건부 resource hook 추가
+* 실제 `app-icon.ico`를 executable·MainWindow·taskbar·tray에, `brand-icon.png`를 Sidebar·About·mini-HUD에 연결
 
 ### 변경
 
@@ -106,7 +106,7 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * fullscreen에서는 저장된 잠금 설정을 바꾸지 않고 control을 숨기며 전체 HUD에 `WS_EX_TRANSPARENT`를 적용하는 기존 display-only 동작 유지
 * 관리자 상태 quick control은 일반 권한에서 기존 `runas` UAC 재시작을 사용하고, 관리자 권한에서는 Windows Explorer shell을 통한 일반 권한 재시작을 요청하도록 변경
 * Overlay의 lock/unlock을 `Segoe MDL2 Assets` 자물쇠 glyph와 서로 다른 색상·tooltip으로 구분하고 접기·닫기 hover 상태를 theme resource에 연결
-* 상단 관리자 quick control 문구를 `관리자모드 실행 ON/OFF`로 바꿔 MutePilot process의 권한 상태임을 명확히 표시
+* 상단 관리자 quick control의 XAML 기본값과 runtime 갱신 문구를 `관리자모드 실행 ON/OFF`로 통일해 MutePilot process의 권한 상태임을 명확히 표시
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 
@@ -137,3 +137,5 @@ Overlay 보완 검증에서는 locked 상태에서 audio·접기·닫기 button�
 Dark·Light·Pink 후원 창에서 계좌정보와 798×798 QR source가 표시됐습니다. `계좌번호 복사`는 clipboard에 `93770200756106`을 넣고 `계좌번호를 복사했습니다.`를 표시했습니다. QR은 Toss 송금 link가 아니라 정확한 계좌정보 텍스트 fallback이며 실제 휴대폰 scan과 Toss 실행은 확인하지 않았습니다. 선택한 icon 원본이 저장소에 없어 실제 binary icon은 포함하지 않았고, 조건부 resource와 Windows 기본 fallback만 검증했습니다.
 
 `dotnet restore MutePilot.sln`과 Release `dotnet build`는 경고 0개, 오류 0개로 성공했습니다. 기존 elevated Debug instance가 실행 파일을 사용 중이라 첫 Debug 복사는 실패했지만 코드 compile 오류는 아니었으며, 해당 사용자 instance는 종료하지 않고 Release output에서 최종 검증했습니다. 기존 설정 파일은 검증 전후 SHA-256이 같았습니다.
+
+최종 자산 적용 뒤 실행 중이던 이전 MutePilot을 종료하고 `dotnet clean`, `dotnet restore`, Release build를 다시 수행했습니다. 새 Release 실행 파일에서 window·taskbar·tray 아이콘과 Sidebar·About 브랜드 이미지를 확인했고, Dark·Light·Pink 후원 창에 360×360 비율로 Toss QR이 표시되는 것을 확인했습니다. 계좌번호 복사도 정상 동작했습니다. 실제 휴대폰 Toss 화면은 확인하지 않았습니다.

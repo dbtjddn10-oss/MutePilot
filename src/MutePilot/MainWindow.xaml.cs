@@ -56,8 +56,14 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Icon = BrandingAssetService.TryLoadWindowIcon();
-        BrandIconImage.Source = BrandingAssetService.TryLoadBrandIcon();
+        var appIcon = BrandingAssetService.TryLoadWindowIcon();
+        var brandIcon = BrandingAssetService.TryLoadBrandIcon();
+        Icon = appIcon;
+        SidebarBrandImage.Source = brandIcon ?? appIcon;
+        SidebarBrandContainer.Visibility = SidebarBrandImage.Source is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        BrandIconImage.Source = brandIcon ?? appIcon;
         BrandIconContainer.Visibility = BrandIconImage.Source is null
             ? Visibility.Collapsed
             : Visibility.Visible;
@@ -1562,8 +1568,8 @@ public partial class MainWindow : Window
                 ? "현재 실행 권한: 관리자 권한"
                 : "현재 실행 권한: 일반 권한";
             AdminQuickButton.Content = isElevated
-                ? "🛡 관리자모드 실행 ON"
-                : "🛡 관리자모드 실행 OFF";
+                ? "관리자모드 실행 ON"
+                : "관리자모드 실행 OFF";
             AdminQuickButton.ToolTip = isElevated
                 ? "일반 권한으로 재시작"
                 : "관리자 권한으로 재시작";

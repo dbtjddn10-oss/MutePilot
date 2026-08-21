@@ -20,9 +20,9 @@ Application Audio에는 현재 audio session의 process에서 실행 파일 경�
 
 Master와 각 앱의 볼륨 프리셋은 slider뿐 아니라 0~100 정수 입력으로도 바꿀 수 있습니다. 숫자를 입력하면 slider와 전환 버튼이 함께 갱신되고, slider를 움직이면 숫자 칸도 같은 값으로 바뀝니다. 공백은 제거해 처리하며 빈 값, 소수, 음수, 100보다 큰 값은 기존 설정을 유지한 채 한국어 오류를 표시합니다. Enter와 기존 전환 버튼은 같은 검증 경로를 사용합니다.
 
-확정된 아이콘 원본은 아직 저장소에 없습니다. `src/MutePilot/Assets/`에 최종 `app-icon.ico`와 `brand-icon.png`를 둘 구조와 파일 이름을 준비했습니다. 파일이 실제로 들어오면 executable·MainWindow·tray·About에서 사용하도록 조건부 연결했고, 현재는 Windows 기본 아이콘 fallback을 유지합니다. 임시 그림을 최종 자산처럼 포함하지 않았습니다.
+최종 `app-icon.ico`와 `brand-icon.png`를 `src/MutePilot/Assets/`에 적용했습니다. 앱 아이콘은 executable·MainWindow·Windows taskbar·tray에 사용하고, 브랜드 이미지는 Sidebar·About·mini-HUD에 표시합니다. 리소스를 실제로 읽지 못한 경우에만 Windows 기본 아이콘으로 돌아갑니다.
 
-About의 `Made by 유성우`를 누르면 별도 후원 안내 창이 열립니다. QR에는 국민은행 계좌정보가 로컬에서 생성된 일반 텍스트로 들어가며, `계좌번호 복사` 뒤에는 창 안에서 성공 여부를 알려 줍니다. 공개된 공식 Toss 송금 deep-link 규격을 확인하지 못했기 때문에 Toss가 자동으로 열리거나 송금이 시작된다고 안내하지 않습니다. 휴대폰·카메라 앱의 QR 처리 방식에 따라 계좌정보가 텍스트로 표시될 수 있습니다.
+About에는 일반 저자 표기 `Made by 유성우`와 별도의 `후원하기` 버튼이 있습니다. 후원 창은 Toss에서 생성한 `toss-support-qr.jpg`를 크게 표시하고, `계좌번호 복사` 뒤에는 창 안에서 성공 여부를 알려 줍니다. Toss QR 원본이 없거나 읽히지 않을 때만 국민은행 계좌정보를 담은 로컬 QR로 돌아갑니다. 실제 휴대폰에서 표시되는 Toss 화면은 이번 작업에서 확인하지 않았습니다.
 
 .NET 8 WPF 앱에서 Windows 기본 출력 장치의 마스터 음소거 상태를 읽고, 버튼으로 음소거와 음소거 해제를 전환하는 기능을 구현했습니다. 실제 Windows PC에서 음소거, 음소거 해제, UI 상태 반영이 정상 동작하는 것을 수동으로 확인했습니다.
 
@@ -123,8 +123,8 @@ Master Audio는 현재 기본 Windows playback endpoint의 scalar volume과 장�
 * 실행 중 앱 아이콘 추출·cache와 접근 실패 fallback — 구현 및 로컬 검증 완료
 * 일반 화면에서 사용할 수 있는 Overlay 행별 audio 버튼·닫기 버튼 — 구현 및 Master audio 로컬 검증 완료
 * 명확한 자물쇠 상태와 runtime mini-HUD 접기·복원 — 구현 및 로컬 GUI 검증 완료
-* `Made by 유성우` 후원 창, 로컬 계좌정보 QR과 계좌번호 복사 — 구현 및 로컬 GUI 검증 완료
-* executable·MainWindow·tray·About 아이콘 연결 — 조건부 hook 완료, 실제 원본 자산 적용 대기
+* `Made by 유성우`와 분리된 `후원하기` 버튼, Toss QR과 계좌번호 복사 — 구현 및 로컬 GUI 검증 완료
+* 실제 MutePilot 아이콘의 executable·MainWindow·taskbar·tray·Sidebar·About 연결 — 적용 및 로컬 GUI 검증 완료
 
 연속적인 볼륨 증가·감소 조절은 현재 범위에 포함하지 않습니다. 볼륨 기능은 저장한 프리셋과 적용 직전의 실제 상태를 오가는 방식만 제공합니다.
 
@@ -135,7 +135,7 @@ Master Audio는 현재 기본 Windows playback endpoint의 scalar volume과 장�
 * WPF
 * Windows Core Audio APIs
 * NAudio.Wasapi 2.3.0
-* QRCoder 1.8.0 기반 로컬 계좌정보 QR 생성
+* Toss 제공 QR 이미지와 QRCoder 1.8.0 기반 로컬 fallback QR
 * Windows `RegisterHotKey`, `UnregisterHotKey`, `WM_HOTKEY`
 * Windows `GetAsyncKeyState` 기반 사용자 선택 단독 키 polling
 * `System.Windows.Forms.NotifyIcon` 기반 시스템 트레이 메뉴
@@ -166,7 +166,7 @@ Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능�
 14. 사용자가 직접 고른 키를 virtual-key 기반으로 저장·감시하는 구조 — 구현 및 실제 PC·SuddenAttack 수동 검증 완료
 15. 사이드바 대시보드와 다크·화이트·핑크 테마 — 완료
 16. Master·앱별 숫자 프리셋 입력과 slider 동기화 — 완료
-17. Release 빌드 정리, 최종 아이콘 자산 적용, GitHub Release 배포 구조 정리
+17. 최종 아이콘 자산 적용 — 완료, GitHub Release 배포 구조 정리
 
 ## 작성자
 

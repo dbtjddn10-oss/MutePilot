@@ -169,8 +169,9 @@
                         <ColumnDefinition Width="24" />
                         <ColumnDefinition Width="21" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock VerticalAlignment="Center" FontSize="13" FontWeight="Bold"
-                               Foreground="{DynamicResource AccentBrush}" Text="M" />
+                    <Image x:Name="MiniBrandImage" Width="18" Height="18"
+                           VerticalAlignment="Center" Stretch="Uniform"
+                           SnapsToDevicePixels="True" />
                     <Grid Grid.Column="1" Margin="1,0,5,0">
                         <TextBlock x:Name="MiniStatusText" VerticalAlignment="Center"
                                    FontSize="10" Foreground="#EEF1F5"

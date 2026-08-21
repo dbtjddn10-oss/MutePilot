@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using MutePilot.Branding;
 
 namespace MutePilot.Overlay;
 
@@ -33,6 +34,8 @@ public partial class MuteOverlayWindow : Window
     public MuteOverlayWindow()
     {
         InitializeComponent();
+        MiniBrandImage.Source = BrandingAssetService.TryLoadBrandIcon() ??
+            BrandingAssetService.TryLoadWindowIcon();
         _configurationCommitTimer = new DispatcherTimer(
             TimeSpan.FromMilliseconds(350),
             DispatcherPriority.Background,

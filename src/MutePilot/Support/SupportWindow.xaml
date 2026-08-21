@@ -2,20 +2,22 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MutePilot 개발 후원"
-        Width="680" Height="590"
-        MinWidth="680" MinHeight="590"
-        MaxWidth="680" MaxHeight="590"
+        Width="640" Height="800"
+        MinWidth="640" MinHeight="800"
+        MaxWidth="640" MaxHeight="800"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource WindowBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
-    <Grid Margin="22">
-        <Border Style="{StaticResource CardStyle}" Padding="22">
+    <Grid Margin="20">
+        <Border Style="{StaticResource CardStyle}" Padding="20">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
@@ -23,64 +25,74 @@
                     <TextBlock FontSize="11" FontWeight="SemiBold"
                                Foreground="{DynamicResource AccentBrush}" Text="SUPPORT" />
                     <TextBlock Margin="0,4,0,0" FontSize="22" FontWeight="SemiBold"
-                               Text="MutePilot 개발을 응원해 주세요" />
-                    <TextBlock Margin="0,7,0,0" MaxWidth="590" FontSize="12"
+                               Text="MutePilot 개발 후원" />
+                    <TextBlock Margin="0,7,0,0" MaxWidth="560" FontSize="12"
                                Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"
                                Text="개발 후원은 MutePilot을 꾸준히 관리하고 다음 기능을 만드는 데 큰 힘이 됩니다. 마음이 맞는다면 작은 후원으로 응원해 주세요. 보내주신 후원은 프로그램 개선과 다음 프로젝트 개발에 사용하겠습니다." />
                 </StackPanel>
 
-                <Grid Grid.Row="1" Margin="0,18,0,14">
+                <Border Grid.Row="1" Width="380" Height="380" Margin="0,16,0,0"
+                        HorizontalAlignment="Center" Padding="9" Background="White"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="1" CornerRadius="12">
+                    <Grid>
+                        <Image x:Name="SupportQrImage" Width="360" Height="360"
+                               Stretch="Uniform" SnapsToDevicePixels="True" />
+                        <TextBlock x:Name="QrFallbackText" Margin="30" VerticalAlignment="Center"
+                                   TextAlignment="Center" TextWrapping="Wrap" Visibility="Collapsed"
+                                   Foreground="#5A6475"
+                                   Text="QR 이미지를 만들지 못했습니다. 아래 계좌번호 복사 버튼을 이용해 주세요." />
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Row="2" Margin="0,10,0,0" HorizontalAlignment="Center">
+                    <TextBlock x:Name="QrInstructionText" HorizontalAlignment="Center"
+                               FontSize="13" FontWeight="SemiBold"
+                               Text="토스로 QR을 스캔해 후원할 수 있습니다." />
+                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center" FontSize="10.5"
+                               Foreground="{DynamicResource MutedTextBrush}"
+                               Text="휴대폰 환경에 따라 표시되는 화면은 다를 수 있습니다." />
+                </StackPanel>
+
+                <Border Grid.Row="3" Margin="0,13,0,0" Padding="14,11"
+                        Background="{DynamicResource ElevatedPanelBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="1" CornerRadius="9">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="0.85*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="0.8*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock FontSize="10.5" Foreground="{DynamicResource MutedTextBrush}" Text="은행" />
+                            <TextBlock Margin="0,3,0,0" FontSize="14" FontWeight="SemiBold" Text="국민은행" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock FontSize="10.5" Foreground="{DynamicResource MutedTextBrush}" Text="계좌번호" />
+                            <TextBlock Margin="0,3,0,0" FontFamily="Consolas" FontSize="15"
+                                       FontWeight="SemiBold" Text="93770200756106" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock FontSize="10.5" Foreground="{DynamicResource MutedTextBrush}" Text="예금주" />
+                            <TextBlock Margin="0,3,0,0" FontSize="14" FontWeight="SemiBold" Text="유성우" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="4" Margin="0,13,0,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="292" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <Border Padding="14" Background="White" BorderBrush="{DynamicResource PanelBorderBrush}"
-                            BorderThickness="1" CornerRadius="12">
-                        <Grid>
-                            <Image x:Name="SupportQrImage" Width="260" Height="260"
-                                   Stretch="Uniform" SnapsToDevicePixels="True" />
-                            <TextBlock x:Name="QrFallbackText" Margin="20" VerticalAlignment="Center"
-                                       TextAlignment="Center" TextWrapping="Wrap" Visibility="Collapsed"
-                                       Foreground="#5A6475"
-                                       Text="QR 이미지를 만들지 못했습니다. 오른쪽의 계좌번호 복사 버튼을 이용해 주세요." />
-                        </Grid>
-                    </Border>
-
-                    <StackPanel Grid.Column="1" Margin="24,3,0,0">
-                        <TextBlock FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
-                                   Text="후원 계좌" />
-                        <TextBlock Margin="0,13,0,0" FontSize="12"
-                                   Foreground="{DynamicResource SecondaryTextBrush}" Text="은행" />
-                        <TextBlock Margin="0,3,0,0" FontSize="16" FontWeight="SemiBold"
-                                   Text="국민은행" />
-                        <TextBlock Margin="0,13,0,0" FontSize="12"
-                                   Foreground="{DynamicResource SecondaryTextBrush}" Text="계좌번호" />
-                        <TextBlock Margin="0,3,0,0" FontFamily="Consolas" FontSize="18"
-                                   FontWeight="SemiBold" Text="93770200756106" />
-                        <TextBlock Margin="0,13,0,0" FontSize="12"
-                                   Foreground="{DynamicResource SecondaryTextBrush}" Text="예금주" />
-                        <TextBlock Margin="0,3,0,0" FontSize="16" FontWeight="SemiBold"
-                                   Text="유성우" />
-
-                        <Button x:Name="CopyAccountButton" Height="36" Margin="0,18,0,0"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Click="CopyAccountButton_Click" Content="계좌번호 복사" />
-                        <TextBlock x:Name="CopyStatusText" MinHeight="18" Margin="0,7,0,0"
-                                   FontSize="11" Foreground="{DynamicResource SuccessBrush}"
-                                   TextWrapping="Wrap" />
-                    </StackPanel>
-                </Grid>
-
-                <Grid Grid.Row="2">
-                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock MaxWidth="510" VerticalAlignment="Center" FontSize="10.5"
-                               Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap"
-                               Text="QR에는 위 계좌 정보가 텍스트로 들어 있습니다. 휴대폰이나 앱에 따라 인식 방식이 다르며 Toss 송금 화면이 자동으로 열리는 것을 보장하지 않습니다." />
-                    <Button Grid.Column="1" Width="78" Height="34" Margin="16,0,0,0"
+                    <Button x:Name="CopyAccountButton" Width="126" Height="34"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Click="CopyAccountButton_Click" Content="계좌번호 복사" />
+                    <TextBlock x:Name="CopyStatusText" Grid.Column="1" MinHeight="18" Margin="12,0"
+                               VerticalAlignment="Center" FontSize="11"
+                               Foreground="{DynamicResource SuccessBrush}" TextWrapping="Wrap" />
+                    <Button Grid.Column="2" Width="78" Height="34"
                             Click="CloseButton_Click" Content="닫기" />
                 </Grid>
             </Grid>

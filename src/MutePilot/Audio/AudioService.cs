@@ -497,7 +497,7 @@ public sealed class AudioService : IAudioService
         }
     }
 
-    private static int NormalizeVolumePercent(int percent) => Math.Clamp(percent, 1, 100);
+    private static int NormalizeVolumePercent(int percent) => Math.Clamp(percent, 0, 100);
 
     private static int ToVolumePercent(float scalar) =>
         Math.Clamp((int)Math.Round(scalar * 100, MidpointRounding.AwayFromZero), 0, 100);

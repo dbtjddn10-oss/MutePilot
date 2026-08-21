@@ -4,10 +4,11 @@
              xmlns:local="clr-namespace:MutePilot"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#111318" />
-        <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#1A1D24" />
-        <SolidColorBrush x:Key="PanelBorderBrush" Color="#2A2F3A" />
-        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#F3F4F6" />
-        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#9CA3AF" />
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Controls.xaml" />
+                <ResourceDictionary Source="Themes/Theme.Dark.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

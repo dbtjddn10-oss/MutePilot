@@ -6,6 +6,8 @@ public sealed class AppSettings
 {
     public const int DefaultVolumePercent = 50;
 
+    public AppTheme Theme { get; set; } = AppTheme.Dark;
+
     public bool OverlayEnabled { get; set; } = true;
 
     public bool OverlayLocked { get; set; } = true;
@@ -30,3 +32,10 @@ public sealed record ApplicationHotkeySetting(
     HotkeyGesture? Hotkey = null,
     HotkeyGesture? VolumeHotkey = null,
     int VolumePercent = AppSettings.DefaultVolumePercent);
+
+public enum AppTheme
+{
+    Dark,
+    Light,
+    Pink
+}

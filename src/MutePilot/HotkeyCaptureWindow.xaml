@@ -5,8 +5,8 @@
         Width="460" Height="390" MinWidth="460" MinHeight="390"
         ResizeMode="NoResize" UseLayoutRounding="True"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource WindowBackgroundBrush}"
-        Foreground="{StaticResource PrimaryTextBrush}"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource PrimaryTextBrush}"
         PreviewKeyDown="Window_PreviewKeyDown">
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -17,23 +17,23 @@
         <StackPanel>
             <TextBlock FontSize="19" FontWeight="SemiBold" Text="원하는 단축키를 누르세요." />
             <TextBlock x:Name="CaptureContextText" Margin="0,6,0,0" FontSize="13"
-                       FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"
+                       FontWeight="SemiBold" Foreground="{DynamicResource SecondaryTextBrush}"
                        TextWrapping="Wrap" />
-            <TextBlock Margin="0,8,0,0" Foreground="{StaticResource SecondaryTextBrush}"
+            <TextBlock Margin="0,8,0,0" Foreground="{DynamicResource SecondaryTextBrush}"
                        Text="누른 키 또는 modifier 조합을 그대로 단축키로 저장합니다."
                        TextWrapping="Wrap" />
             <TextBlock Margin="0,8,0,0" FontSize="11"
-                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Foreground="{DynamicResource SecondaryTextBrush}"
                        Text="설정한 키는 다른 프로그램의 원래 입력도 그대로 동작합니다."
                        TextWrapping="Wrap" />
             <TextBlock Margin="0,4,0,0" FontSize="11"
-                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Foreground="{DynamicResource SecondaryTextBrush}"
                        Text="Windows 또는 다른 프로그램에서 이미 사용하는 조합은 등록되지 않을 수 있습니다."
                        TextWrapping="Wrap" />
         </StackPanel>
         <Border Grid.Row="1" Margin="0,18" Padding="20" MinHeight="126"
-                Background="{StaticResource PanelBackgroundBrush}"
-                BorderBrush="{StaticResource PanelBorderBrush}"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
                 BorderThickness="1" CornerRadius="6">
             <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 <TextBlock x:Name="CapturedHotkeyText" MinHeight="38" Padding="4"
@@ -42,7 +42,7 @@
                            Text="키 입력 대기 중" TextAlignment="Center"
                            TextWrapping="Wrap" />
                 <TextBlock x:Name="CaptureErrorText" Margin="0,8,0,0"
-                           HorizontalAlignment="Stretch" Foreground="#FCA5A5"
+                           HorizontalAlignment="Stretch" Foreground="{DynamicResource DangerBrush}"
                            TextAlignment="Center" TextWrapping="Wrap" />
             </StackPanel>
         </Border>

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using MutePilot.Audio;
@@ -11,6 +12,7 @@ using MutePilot.Security;
 using MutePilot.Settings;
 using MutePilot.Startup;
 using MutePilot.Tray;
+using MutePilot.Theming;
 using MutePilot.Volume;
 
 namespace MutePilot;
@@ -41,6 +43,8 @@ public partial class MainWindow : Window
     private bool _servicesStarted;
     private bool _settingsLoaded;
     private bool _isRefreshingApplicationItems;
+    private bool _isSynchronizingPresetInputs;
+    private bool _isUpdatingThemeSelection;
     private StartupStatus _startupStatus = new(StartupTaskState.Disabled);
     private long _audioStateRevision;
 
@@ -93,6 +97,8 @@ public partial class MainWindow : Window
 
             var loadResult = _settingsService.Load();
             _settings = loadResult.Settings;
+            ThemeManager.Apply(_settings.Theme);
+            UpdateThemeSelection();
             _overlayService.Configure(CreateOverlayConfiguration(_settings));
             _overlayService.SetEnabled(_settings.OverlayEnabled);
             UpdateOverlaySettingDisplay();
@@ -167,6 +173,52 @@ public partial class MainWindow : Window
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e) => StartServices();
 
+    private void SidebarNavigationButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string sectionName })
+        {
+            return;
+        }
+
+        var target = sectionName switch
+        {
+            "Applications" => ApplicationsSection,
+            "Settings" => SettingsSection,
+            "About" => AboutSection,
+            _ => HomeSection
+        };
+        target.BringIntoView();
+    }
+
+    private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_settingsLoaded || _isUpdatingThemeSelection ||
+            ThemeComboBox.SelectedItem is not ComboBoxItem { Tag: string themeName } ||
+            !Enum.TryParse(themeName, true, out AppTheme selectedTheme) ||
+            selectedTheme == _settings.Theme)
+        {
+            return;
+        }
+
+        var previousSettings = CloneSettings(_settings);
+        _settings.Theme = selectedTheme;
+        ThemeManager.Apply(selectedTheme);
+
+        try
+        {
+            _settingsService.Save(_settings);
+            HotkeyErrorText.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            _settings = previousSettings;
+            ThemeManager.Apply(_settings.Theme);
+            UpdateThemeSelection();
+            ShowHotkeyError("테마 설정을 저장하지 못해 이전 테마로 되돌렸습니다.");
+        }
+    }
+
     private void MasterMuteButton_Click(object sender, RoutedEventArgs e)
     {
         MasterMuteButton.IsEnabled = false;
@@ -209,7 +261,7 @@ public partial class MainWindow : Window
         object sender,
         RoutedPropertyChangedEventArgs<double> e)
     {
-        if (!_settingsLoaded)
+        if (!_settingsLoaded || _isSynchronizingPresetInputs)
         {
             return;
         }
@@ -217,8 +269,63 @@ public partial class MainWindow : Window
         SaveMasterVolumePreset((int)Math.Round(e.NewValue));
     }
 
+    private void MasterVolumeInputTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_settingsLoaded || _isSynchronizingPresetInputs || sender is not TextBox)
+        {
+            return;
+        }
+
+        _ = TryCommitMasterVolumeInput();
+    }
+
+    private void MasterVolumeInputTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (TryCommitMasterVolumeInput())
+        {
+            MasterVolumeInputTextBox.SelectAll();
+        }
+    }
+
+    private bool TryCommitMasterVolumeInput()
+    {
+        if (!PresetVolumeInput.TryParse(MasterVolumeInputTextBox.Text, out var percent))
+        {
+            MasterVolumeInputErrorText.Text = PresetVolumeInput.ValidationMessage;
+            MasterVolumeInputErrorText.Visibility = Visibility.Visible;
+            return false;
+        }
+
+        MasterVolumeInputErrorText.Visibility = Visibility.Collapsed;
+        _isSynchronizingPresetInputs = true;
+
+        try
+        {
+            MasterVolumeSlider.Value = percent;
+        }
+        finally
+        {
+            _isSynchronizingPresetInputs = false;
+        }
+
+        SaveMasterVolumePreset(percent);
+        return true;
+    }
+
     private void MasterVolumeApplyButton_Click(object sender, RoutedEventArgs e)
     {
+        if (!TryCommitMasterVolumeInput())
+        {
+            MasterVolumeInputTextBox.Focus();
+            return;
+        }
+
         MasterVolumeApplyButton.IsEnabled = false;
         AudioErrorText.Visibility = Visibility.Collapsed;
 
@@ -465,32 +572,134 @@ public partial class MainWindow : Window
         RoutedPropertyChangedEventArgs<double> e)
     {
         if (!_settingsLoaded || _isRefreshingApplicationItems ||
-            sender is not Slider { Tag: string processName } slider ||
-            (!slider.IsMouseCaptureWithin && !slider.IsKeyboardFocused))
+            _isSynchronizingPresetInputs ||
+            sender is not Slider { Tag: string processName } slider)
         {
             return;
         }
 
         if (slider.Parent is Grid grid)
         {
+            var inputTextBox = grid.Children.OfType<TextBox>().FirstOrDefault();
             var toggleButton = grid.Children.OfType<Button>().FirstOrDefault();
+            var normalizedPercent = Math.Clamp((int)Math.Round(e.NewValue), 0, 100);
+
+            if (inputTextBox is not null && inputTextBox.Text != normalizedPercent.ToString())
+            {
+                _isSynchronizingPresetInputs = true;
+
+                try
+                {
+                    inputTextBox.Text = normalizedPercent.ToString();
+                }
+                finally
+                {
+                    _isSynchronizingPresetInputs = false;
+                }
+            }
 
             if (toggleButton is not null)
             {
                 toggleButton.Content = _volumePresetToggleService
                     .IsApplicationPresetActive(processName)
                         ? "기본 볼륨으로 복원"
-                        : $"{Math.Clamp((int)Math.Round(e.NewValue), 1, 100)}%로 전환";
+                        : $"{normalizedPercent}%로 전환";
             }
         }
 
         SaveApplicationVolumePreset(processName, (int)Math.Round(e.NewValue));
     }
 
+    private void ApplicationVolumeInputTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_settingsLoaded || _isRefreshingApplicationItems || _isSynchronizingPresetInputs ||
+            sender is not TextBox { Tag: string processName } textBox)
+        {
+            return;
+        }
+
+        _ = TryCommitApplicationVolumeInput(textBox, processName);
+    }
+
+    private void ApplicationVolumeInputTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || sender is not TextBox { Tag: string processName } textBox)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (TryCommitApplicationVolumeInput(textBox, processName))
+        {
+            textBox.SelectAll();
+        }
+    }
+
+    private bool TryCommitApplicationVolumeInput(TextBox textBox, string processName)
+    {
+        if (!PresetVolumeInput.TryParse(textBox.Text, out var percent))
+        {
+            ShowApplicationInputError(processName);
+            return false;
+        }
+
+        ApplicationErrorText.Visibility = Visibility.Collapsed;
+        if (textBox.Parent is Grid grid &&
+            grid.Children.OfType<Slider>().FirstOrDefault() is Slider slider)
+        {
+            _isSynchronizingPresetInputs = true;
+
+            try
+            {
+                slider.Value = percent;
+            }
+            finally
+            {
+                _isSynchronizingPresetInputs = false;
+            }
+
+            if (grid.Children.OfType<Button>().FirstOrDefault() is Button toggleButton)
+            {
+                toggleButton.Content = _volumePresetToggleService
+                    .IsApplicationPresetActive(processName)
+                        ? "기본 볼륨으로 복원"
+                        : $"{percent}%로 전환";
+            }
+        }
+
+        _isSynchronizingPresetInputs = true;
+
+        try
+        {
+            textBox.Text = percent.ToString();
+        }
+        finally
+        {
+            _isSynchronizingPresetInputs = false;
+        }
+
+        SaveApplicationVolumePreset(processName, percent);
+        return true;
+    }
+
+    private void ShowApplicationInputError(string processName)
+    {
+        ApplicationErrorText.Text = $"{processName}: {PresetVolumeInput.ValidationMessage}";
+        ApplicationErrorText.Visibility = Visibility.Visible;
+    }
+
     private void ApplicationVolumeApplyButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string processName } button)
         {
+            return;
+        }
+
+        if (button.Parent is Grid grid &&
+            grid.Children.OfType<TextBox>().FirstOrDefault() is TextBox textBox &&
+            !TryCommitApplicationVolumeInput(textBox, processName))
+        {
+            textBox.Focus();
             return;
         }
 
@@ -951,6 +1160,7 @@ public partial class MainWindow : Window
 
     private static AppSettings CloneSettings(AppSettings settings) => new()
     {
+        Theme = settings.Theme,
         OverlayEnabled = settings.OverlayEnabled,
         OverlayLocked = settings.OverlayLocked,
         OverlayOpacity = settings.OverlayOpacity,
@@ -964,8 +1174,20 @@ public partial class MainWindow : Window
 
     private void SaveMasterVolumePreset(int percent)
     {
-        var normalizedPercent = Math.Clamp(percent, 1, 100);
-        MasterVolumePresetText.Text = $"{normalizedPercent}%";
+        var normalizedPercent = Math.Clamp(percent, 0, 100);
+        _isSynchronizingPresetInputs = true;
+
+        try
+        {
+            MasterVolumeInputTextBox.Text = normalizedPercent.ToString();
+        }
+        finally
+        {
+            _isSynchronizingPresetInputs = false;
+        }
+
+        MasterVolumeInputErrorText.Visibility = Visibility.Collapsed;
+        MasterVolumePresetText.Text = $"설정값: {normalizedPercent}%";
         MasterVolumeApplyButton.Content = _volumePresetToggleService.IsMasterPresetActive
             ? "기본 볼륨으로 복원"
             : $"{normalizedPercent}%로 전환";
@@ -994,7 +1216,7 @@ public partial class MainWindow : Window
 
     private void SaveApplicationVolumePreset(string processName, int percent)
     {
-        var normalizedPercent = Math.Clamp(percent, 1, 100);
+        var normalizedPercent = Math.Clamp(percent, 0, 100);
         var previousSettings = CloneSettings(_settings);
         var setting = FindApplicationSetting(processName) ??
             new ApplicationHotkeySetting(processName);
@@ -1072,6 +1294,7 @@ public partial class MainWindow : Window
     private void UpdateOverlaySettingDisplay()
     {
         OverlayToggleButton.Content = _settings.OverlayEnabled ? "ON" : "OFF";
+        OverlayStatusChipText.Text = _settings.OverlayEnabled ? "오버레이 ON" : "오버레이 OFF";
         OverlayToggleButton.ToolTip = _settings.OverlayEnabled
             ? "음소거 상태 오버레이를 끕니다."
             : "음소거 상태 오버레이를 켭니다.";
@@ -1126,6 +1349,7 @@ public partial class MainWindow : Window
             PrivilegeStatusText.Text = isElevated
                 ? "현재 실행 권한: 관리자 권한"
                 : "현재 실행 권한: 일반 권한";
+            PrivilegeStatusChipText.Text = isElevated ? "관리자 권한" : "일반 권한";
             RestartAsAdministratorButton.Content = "MutePilot을 관리자 권한으로 재시작";
             RestartAsAdministratorButton.IsEnabled = !isElevated;
         }
@@ -1133,6 +1357,7 @@ public partial class MainWindow : Window
         {
             Debug.WriteLine(exception);
             PrivilegeStatusText.Text = "현재 실행 권한: 확인할 수 없음";
+            PrivilegeStatusChipText.Text = "권한 확인 실패";
             RestartAsAdministratorButton.IsEnabled = false;
         }
     }
@@ -1160,12 +1385,43 @@ public partial class MainWindow : Window
 
     private void UpdateMasterVolumeSettingDisplay()
     {
-        var percent = Math.Clamp(_settings.MasterVolumePercent, 1, 100);
+        var percent = Math.Clamp(_settings.MasterVolumePercent, 0, 100);
+        _isSynchronizingPresetInputs = true;
+
+        try
+        {
+            MasterVolumeInputTextBox.Text = percent.ToString();
+        }
+        finally
+        {
+            _isSynchronizingPresetInputs = false;
+        }
+
         MasterVolumeSlider.Value = percent;
-        MasterVolumePresetText.Text = $"{percent}%";
+        MasterVolumeInputErrorText.Visibility = Visibility.Collapsed;
+        MasterVolumePresetText.Text = $"설정값: {percent}%";
         MasterVolumeApplyButton.Content = _volumePresetToggleService.IsMasterPresetActive
             ? "기본 볼륨으로 복원"
             : $"{percent}%로 전환";
+    }
+
+    private void UpdateThemeSelection()
+    {
+        _isUpdatingThemeSelection = true;
+
+        try
+        {
+            ThemeComboBox.SelectedItem = ThemeComboBox.Items
+                .OfType<ComboBoxItem>()
+                .FirstOrDefault(item => string.Equals(
+                    item.Tag?.ToString(),
+                    _settings.Theme.ToString(),
+                    StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            _isUpdatingThemeSelection = false;
+        }
     }
 
     private void UpdateMasterAudioState(bool isMuted, int? volumePercent = null)

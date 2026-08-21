@@ -54,6 +54,7 @@ public sealed class SettingsService : ISettingsService
             var json = File.ReadAllText(SettingsFilePath);
             var settings = JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions) ??
                 new AppSettings();
+            NormalizeTheme(settings);
             NormalizeOverlaySettings(settings);
             NormalizeVolumeSettings(settings);
             settings.ApplicationBindings ??= [];
@@ -102,15 +103,20 @@ public sealed class SettingsService : ISettingsService
         }
     }
 
+    private static void NormalizeTheme(AppSettings settings)
+    {
+        if (!Enum.IsDefined(settings.Theme))
+        {
+            settings.Theme = AppTheme.Dark;
+        }
+    }
+
     private static void NormalizeVolumeSettings(AppSettings settings)
     {
         settings.MasterVolumePercent = NormalizeVolumePercent(settings.MasterVolumePercent);
     }
 
-    private static int NormalizeVolumePercent(int percent) =>
-        percent == 0
-            ? AppSettings.DefaultVolumePercent
-            : Math.Clamp(percent, 1, 100);
+    private static int NormalizeVolumePercent(int percent) => Math.Clamp(percent, 0, 100);
 
     public void Save(AppSettings settings)
     {

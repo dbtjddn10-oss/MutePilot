@@ -30,5 +30,12 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * 단독 F키는 polling만 사용하고 modifier 조합은 기존 `RegisterHotKey`를 사용하도록 분리해 이중 토글 방지
 * `GetAsyncKeyState`의 high-order bit와 key latch로 down 전환을 구분해 키를 누르고 있을 때 반복 토글되지 않도록 처리
 * 단축키 입력 창의 표시 영역 높이와 padding을 늘려 단축키 문자열이 잘리던 문제 수정
+* 마스터·앱별 버튼과 전역 단축키의 음소거 전환 성공 시 대상 이름과 상태를 표시하는 선택형 WPF 오버레이 추가
+* 오버레이를 주 모니터 오른쪽 위에 약 1.5초간 표시하고, 새 상태가 들어오면 숨김 시간을 다시 시작하도록 구성
+* 오버레이가 포커스를 받거나 마우스 입력을 가로채지 않도록 `WS_EX_NOACTIVATE`, `WS_EX_TRANSPARENT`, `WS_EX_TOOLWINDOW` 확장 스타일 적용
+* 메인 화면에서 오버레이를 즉시 켜고 끄는 설정과 `%LocalAppData%\MutePilot\settings.json`의 `overlayEnabled` 저장·복원 추가
+* 기존 설정 파일에 `overlayEnabled`가 없을 때 기본값 ON을 사용하도록 이전 설정과의 호환성 유지
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
+
+오버레이의 자동 숨김, 연속 상태 표시 시 timeout 재시작, 클릭 통과, focus 유지, ON/OFF와 설정 복원을 Windows 환경에서 검증했습니다. 독점 전체 화면 위 표시는 Windows의 일반 WPF 창 방식으로 보장되지 않으며, SuddenAttack 전면 실행 상태의 표시는 아직 수동 검증하지 않았습니다.

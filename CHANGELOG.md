@@ -70,6 +70,11 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * 앱 session 구성이 달라지거나 기본 playback endpoint가 바뀌면 이전 기본 상태를 새 대상에 적용하지 않는 무효화 처리 추가
 * 사용자가 입력한 키를 localized 표시 문자열이 아닌 Windows virtual-key와 modifier flags로 저장하는 generic hotkey 표현 추가
 * 이전 JSON의 WPF `key` 값을 virtual-key로 변환해 기존 F키와 modifier 단축키를 그대로 불러오는 호환 converter 추가
+* 네이비·차콜 기반 사이드바 대시보드와 Master Audio, Applications, 실행 설정, About 영역 추가
+* 다크·화이트·핑크 색상을 각각 관리하는 WPF `ResourceDictionary` 테마 구조 추가
+* 선택한 테마를 기존 JSON 설정에 호환되는 `theme` 필드로 저장하고 재시작 시 복원하는 기능 추가
+* Master와 각 앱 볼륨 프리셋 옆에 0~100 정수 입력 칸과 Enter 확인 경로 추가
+* 최종 아이콘을 둘 `src/MutePilot/Assets/` 구조와 예상 파일 이름 문서 추가
 
 ### 변경
 
@@ -81,6 +86,9 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * 단독 단축키의 F1~F11 제한과 modifier 조합의 영문·숫자 whitelist를 제거하고 입력 창에서 사용자가 누른 일반 키를 같은 경로로 처리하도록 변경
 * 단독 키 polling을 함수 키 전용 분기에서 현재 등록된 virtual-key만 조회하는 generic map으로 변경
 * Escape를 입력 창 취소 전용 키로 쓰지 않고 일반 단축키로 선택할 수 있게 하며, 취소는 명시적인 `취소` 버튼으로 유지
+* 메인 창을 카드형 사이드바 대시보드로 다시 배치하고 공통 버튼·입력·panel 스타일을 재사용하도록 변경
+* 볼륨 프리셋 범위를 0~100%로 맞추고 slider와 숫자 입력이 양방향으로 동기화되도록 변경
+* 잘못된 숫자 입력은 저장하거나 실제 오디오에 적용하지 않고 한국어 검증 메시지를 표시하도록 변경
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 
@@ -97,3 +105,7 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 W, S, Space, Escape와 modifier 조합이 같은 virtual-key 표현으로 만들어지는 것을 자동 확인했습니다. 중복 거부, 단독 키 변경·삭제 시 polling map과 latch 정리, 하나의 polling task 유지, 실제 `RegisterHotKey` 경로, 이전 F8 JSON 호환도 검증했습니다.
 
 실제 PC와 SuddenAttack에서 사용자가 직접 고른 단축키가 정상 동작하는 것을 수동 확인했습니다. 트레이에 숨긴 상태의 단축키와 오버레이, 볼륨 프리셋 전환, 원래 볼륨·음소거 상태 복원이 유지됐습니다. 단축키 변경 뒤에는 이전 키가 멈추고 새 키만 동작했으며, MutePilot 재시작 뒤에도 설정이 복원됐습니다.
+
+v0.8 GUI에서 다크·화이트·핑크 테마의 실시간 전환과 핑크 테마 재시작 복원을 확인했습니다. `theme` 필드가 없던 실제 기존 설정은 다크모드와 기존 F1~F4 단축키로 로드됐고, 시작만으로 파일 hash가 바뀌지 않았습니다. Master와 앱 입력에 30을 넣었을 때 slider와 설정이 함께 바뀌고, slider 변경도 숫자 칸에 반영됐습니다. 0과 공백 제거는 정상 처리됐으며 빈 값, 101, 소수와 문자는 기존 값을 유지하고 오류를 표시했습니다. 검증 뒤 실제 설정 파일은 원래 byte와 SHA-256으로 복구했습니다.
+
+`dotnet restore`와 `dotnet build`는 경고 0개, 오류 0개로 성공했습니다. GUI 실행, 기존 hotkey 표시, X를 눌렀을 때 tray process와 overlay 유지, startup/elevation UI와 `Made by 유성우`를 다시 확인했습니다. 이번 v0.8 작업에서는 실제 오디오 전환이나 SuddenAttack을 다시 수동 테스트하지 않았습니다. 확정된 아이콘 원본이 없어 아이콘 파일은 아직 적용하지 않았습니다.

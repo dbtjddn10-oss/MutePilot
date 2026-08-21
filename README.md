@@ -20,7 +20,9 @@ Application Audio에는 현재 audio session의 process에서 실행 파일 경�
 
 Master와 각 앱의 볼륨 프리셋은 slider뿐 아니라 0~100 정수 입력으로도 바꿀 수 있습니다. 숫자를 입력하면 slider와 전환 버튼이 함께 갱신되고, slider를 움직이면 숫자 칸도 같은 값으로 바뀝니다. 공백은 제거해 처리하며 빈 값, 소수, 음수, 100보다 큰 값은 기존 설정을 유지한 채 한국어 오류를 표시합니다. Enter와 기존 전환 버튼은 같은 검증 경로를 사용합니다.
 
-확정된 아이콘 원본은 아직 저장소에 없습니다. `src/MutePilot/Assets/`에 최종 `app-icon.ico`와 `brand-icon.png`를 둘 구조와 파일 이름만 준비했고, 임시 그림을 최종 자산처럼 포함하지 않았습니다.
+확정된 아이콘 원본은 아직 저장소에 없습니다. `src/MutePilot/Assets/`에 최종 `app-icon.ico`와 `brand-icon.png`를 둘 구조와 파일 이름을 준비했습니다. 파일이 실제로 들어오면 executable·MainWindow·tray·About에서 사용하도록 조건부 연결했고, 현재는 Windows 기본 아이콘 fallback을 유지합니다. 임시 그림을 최종 자산처럼 포함하지 않았습니다.
+
+About의 `Made by 유성우`를 누르면 별도 후원 안내 창이 열립니다. QR에는 국민은행 계좌정보가 로컬에서 생성된 일반 텍스트로 들어가며, `계좌번호 복사` 뒤에는 창 안에서 성공 여부를 알려 줍니다. 공개된 공식 Toss 송금 deep-link 규격을 확인하지 못했기 때문에 Toss가 자동으로 열리거나 송금이 시작된다고 안내하지 않습니다. 휴대폰·카메라 앱의 QR 처리 방식에 따라 계좌정보가 텍스트로 표시될 수 있습니다.
 
 .NET 8 WPF 앱에서 Windows 기본 출력 장치의 마스터 음소거 상태를 읽고, 버튼으로 음소거와 음소거 해제를 전환하는 기능을 구현했습니다. 실제 Windows PC에서 음소거, 음소거 해제, UI 상태 반영이 정상 동작하는 것을 수동으로 확인했습니다.
 
@@ -46,7 +48,7 @@ MutePilot은 설정한 키를 관찰할 뿐 차단하거나 다른 입력으로 
 
 전체 화면 앱이 foreground일 때 HUD는 마우스 클릭과 키보드 포커스를 가로채지 않는 display-only 상태입니다. 일반 Windows 화면에서는 각 HUD 행의 작은 speaker 버튼으로 Master 또는 실행 중인 앱만 음소거/해제할 수 있고, 오른쪽 위 `×`를 누르면 MutePilot은 종료하지 않은 채 Overlay만 OFF로 바뀝니다. 대시보드 빠른 버튼, 실행 설정, tray menu와 HUD 닫기 버튼은 모두 같은 `overlayEnabled`를 사용해 상태를 함께 갱신합니다. 설정은 `%LocalAppData%\MutePilot\settings.json`에 저장됩니다.
 
-일반 Windows 화면에서는 HUD 오른쪽 위의 잠금 버튼으로 위치 설정 모드를 바꿀 수 있습니다. 잠금을 풀면 `MutePilot` 제목 부분을 끌어 위치를 옮기고 20~100% 범위의 투명도 slider를 조절할 수 있습니다. 다시 잠그면 위치 이동과 설정 panel만 막히며 audio 버튼과 닫기 버튼은 계속 사용할 수 있습니다. 위치, 잠금 상태, 투명도는 기존 설정 파일의 `overlayLeft`, `overlayTop`, `overlayLocked`, `overlayOpacity`에 함께 저장됩니다.
+일반 Windows 화면에서는 HUD 오른쪽 위의 뚜렷한 자물쇠 버튼으로 위치 설정 모드를 바꿀 수 있습니다. 잠금을 풀면 `MutePilot` 제목 부분을 끌어 위치를 옮기고 20~100% 범위의 투명도 slider를 조절할 수 있습니다. 다시 잠그면 위치 이동과 설정 panel만 막히며 audio·접기·닫기 버튼은 계속 사용할 수 있습니다. `−`를 누르면 Overlay는 OFF로 바뀌지 않고 176×46 크기의 mini-HUD로 접히며, 펼치기 버튼으로 같은 HUD를 다시 복원합니다. 접힘 상태는 현재 실행 중에만 유지됩니다. 위치, 잠금 상태, 투명도는 기존 설정 파일에 계속 저장됩니다.
 
 저장 위치가 현재 monitor 작업 영역 밖이면 가장 가까운 화면 안으로 되돌립니다. 메인 화면의 `오버레이 위치 초기화` 버튼으로 언제든 주 모니터 오른쪽 위 기본 위치로 복구할 수도 있습니다.
 
@@ -66,7 +68,7 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 
 **시스템 트레이 백그라운드 동작: 구현 및 실제 PC·SuddenAttack 수동 검증 완료**
 
-메인 화면의 `실행 설정` 영역에서 `현재 실행 권한`을 `관리자 권한` 또는 `일반 권한`으로 확인하고, 필요할 때 `MutePilot을 관리자 권한으로 재시작`을 선택할 수 있습니다. 이 문구는 Windows나 PC를 재시작한다는 뜻이 아니라 MutePilot process만 다시 실행한다는 뜻입니다. 재실행과 자동 실행 작업 변경은 Windows의 정상 `runas` UAC 흐름을 사용하며 UAC를 우회하거나 관리자 자격 증명을 저장하지 않습니다. 이미 관리자 권한이면 재실행 버튼은 비활성화됩니다.
+메인 화면의 `실행 설정` 영역에서 `현재 실행 권한`을 `관리자 권한` 또는 `일반 권한`으로 확인할 수 있습니다. 상단 quick control은 `관리자모드 실행 ON/OFF`로 표시해 Windows 자체 설정처럼 보이지 않게 했습니다. 권한 변경은 MutePilot process 재시작으로 처리하며 Windows의 정상 `runas` UAC 흐름을 사용합니다. UAC를 우회하거나 관리자 자격 증명을 저장하지 않습니다.
 
 `Windows 로그인 시 MutePilot 자동 실행`을 ON으로 바꾸면 시작프로그램 폴더나 `HKCU Run` 대신 현재 사용자 전용 Task Scheduler 작업 `MutePilot Startup`을 등록합니다. 이 작업은 현재 사용자가 로그인할 때 `Highest` run level과 `InteractiveToken`으로 현재 MutePilot 실행 파일에 `--background`를 전달합니다. SYSTEM 계정으로 실행하지 않습니다. OFF로 바꾸면 같은 작업을 제거하며, 생성·삭제가 실패하거나 UAC가 취소되면 실제 작업 상태를 다시 읽어 UI에 반영합니다.
 
@@ -120,6 +122,9 @@ Master Audio는 현재 기본 Windows playback endpoint의 scalar volume과 장�
 * 대시보드·실행 설정 두 화면 탐색과 1100×740 기본 창 — 구현 및 실제 GUI 확인 완료
 * 실행 중 앱 아이콘 추출·cache와 접근 실패 fallback — 구현 및 로컬 검증 완료
 * 일반 화면에서 사용할 수 있는 Overlay 행별 audio 버튼·닫기 버튼 — 구현 및 Master audio 로컬 검증 완료
+* 명확한 자물쇠 상태와 runtime mini-HUD 접기·복원 — 구현 및 로컬 GUI 검증 완료
+* `Made by 유성우` 후원 창, 로컬 계좌정보 QR과 계좌번호 복사 — 구현 및 로컬 GUI 검증 완료
+* executable·MainWindow·tray·About 아이콘 연결 — 조건부 hook 완료, 실제 원본 자산 적용 대기
 
 연속적인 볼륨 증가·감소 조절은 현재 범위에 포함하지 않습니다. 볼륨 기능은 저장한 프리셋과 적용 직전의 실제 상태를 오가는 방식만 제공합니다.
 
@@ -130,6 +135,7 @@ Master Audio는 현재 기본 Windows playback endpoint의 scalar volume과 장�
 * WPF
 * Windows Core Audio APIs
 * NAudio.Wasapi 2.3.0
+* QRCoder 1.8.0 기반 로컬 계좌정보 QR 생성
 * Windows `RegisterHotKey`, `UnregisterHotKey`, `WM_HOTKEY`
 * Windows `GetAsyncKeyState` 기반 사용자 선택 단독 키 polling
 * `System.Windows.Forms.NotifyIcon` 기반 시스템 트레이 메뉴

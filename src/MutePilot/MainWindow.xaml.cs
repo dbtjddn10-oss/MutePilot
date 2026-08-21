@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -7,6 +8,7 @@ using MutePilot.Audio;
 using MutePilot.Hotkeys;
 using MutePilot.Overlay;
 using MutePilot.Settings;
+using MutePilot.Tray;
 
 namespace MutePilot;
 
@@ -18,6 +20,7 @@ public partial class MainWindow : Window
     private readonly IHotkeyService _hotkeyService = new HotkeyService();
     private readonly ISettingsService _settingsService = new SettingsService();
     private readonly IOverlayService _overlayService;
+    private readonly ITrayService _trayService;
     private readonly DispatcherTimer _overlayRefreshTimer;
     private AppSettings _settings = new();
     private IReadOnlyList<ApplicationAudioSession> _activeApplicationSessions = [];
@@ -27,6 +30,7 @@ public partial class MainWindow : Window
     private bool _isOverlayRefreshRunning;
     private bool _isApplyingOverlayConfiguration;
     private bool _isClosed;
+    private bool _isRealExitRequested;
     private long _audioStateRevision;
 
     public MainWindow()
@@ -34,12 +38,29 @@ public partial class MainWindow : Window
         InitializeComponent();
         _overlayService = new OverlayService(Dispatcher);
         _overlayService.ConfigurationChanged += OverlayService_ConfigurationChanged;
+        _trayService = new TrayService();
+        _trayService.OpenRequested += TrayService_OpenRequested;
+        _trayService.OverlayToggleRequested += TrayService_OverlayToggleRequested;
+        _trayService.ExitRequested += TrayService_ExitRequested;
         _overlayRefreshTimer = new DispatcherTimer(
             OverlayRefreshInterval,
             DispatcherPriority.Background,
             OverlayRefreshTimer_Tick,
             Dispatcher);
         _overlayRefreshTimer.Stop();
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (!_isRealExitRequested)
+        {
+            e.Cancel = true;
+            Hide();
+            _trayService.ShowRunningInBackgroundNotice();
+            return;
+        }
+
+        base.OnClosing(e);
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -107,6 +128,10 @@ public partial class MainWindow : Window
         _hotkeyService.Dispose();
         _overlayService.ConfigurationChanged -= OverlayService_ConfigurationChanged;
         _overlayService.Dispose();
+        _trayService.OpenRequested -= TrayService_OpenRequested;
+        _trayService.OverlayToggleRequested -= TrayService_OverlayToggleRequested;
+        _trayService.ExitRequested -= TrayService_ExitRequested;
+        _trayService.Dispose();
         base.OnClosed(e);
     }
 
@@ -143,10 +168,13 @@ public partial class MainWindow : Window
     private void MasterHotkeyRemoveButton_Click(object sender, RoutedEventArgs e) =>
         RemoveHotkey(HotkeyBinding.MasterTargetId);
 
-    private void OverlayToggleButton_Click(object sender, RoutedEventArgs e)
+    private void OverlayToggleButton_Click(object sender, RoutedEventArgs e) =>
+        SetOverlayEnabled(!_settings.OverlayEnabled);
+
+    private void SetOverlayEnabled(bool isEnabled)
     {
         var previousSettings = CloneSettings(_settings);
-        _settings.OverlayEnabled = !_settings.OverlayEnabled;
+        _settings.OverlayEnabled = isEnabled;
 
         try
         {
@@ -169,6 +197,63 @@ public partial class MainWindow : Window
             _overlayService.SetEnabled(_settings.OverlayEnabled);
             UpdateOverlaySettingDisplay();
             ShowHotkeyError("오버레이 설정을 저장하지 못했습니다.");
+        }
+    }
+
+    private void TrayService_OpenRequested(object? sender, EventArgs e) =>
+        RunOnUiThread(RestoreMainWindow);
+
+    private void TrayService_OverlayToggleRequested(object? sender, EventArgs e) =>
+        RunOnUiThread(() => SetOverlayEnabled(!_settings.OverlayEnabled));
+
+    private void TrayService_ExitRequested(object? sender, EventArgs e) =>
+        RunOnUiThread(RequestRealExit);
+
+    private void RestoreMainWindow()
+    {
+        if (_isClosed || _isRealExitRequested)
+        {
+            return;
+        }
+
+        if (!IsVisible)
+        {
+            Show();
+        }
+
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = WindowState.Normal;
+        }
+
+        Activate();
+    }
+
+    private void RequestRealExit()
+    {
+        if (_isClosed || _isRealExitRequested)
+        {
+            return;
+        }
+
+        _isRealExitRequested = true;
+        System.Windows.Application.Current.Shutdown();
+    }
+
+    private void RunOnUiThread(Action action)
+    {
+        if (_isClosed || Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
+        {
+            return;
+        }
+
+        if (Dispatcher.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.BeginInvoke(action);
         }
     }
 
@@ -618,6 +703,7 @@ public partial class MainWindow : Window
         OverlayToggleButton.ToolTip = _settings.OverlayEnabled
             ? "음소거 상태 오버레이를 끕니다."
             : "음소거 상태 오버레이를 켭니다.";
+        _trayService.SetOverlayEnabled(_settings.OverlayEnabled);
     }
 
     private void UpdateMasterHotkeyDisplay()

@@ -41,4 +41,4 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 
-고정형 HUD가 2.3초 뒤에도 유지되는 것과 click-through, focus 유지, ON/OFF, 설정 복원, 같은 window의 상태 갱신을 Windows 환경에서 검증했습니다. 이전 팝업형 오버레이는 SuddenAttack에서도 표시되는 것을 사용자가 확인했습니다. 고정형 HUD는 실제 게임에서 다시 확인할 예정이며, 독점 전체 화면 위 표시는 일반 WPF 창 방식으로 보장되지 않습니다.
+고정형 HUD가 2.3초 뒤에도 유지되는 것과 click-through, focus 유지, ON/OFF, 설정 복원, 같은 window의 상태 갱신을 Windows 환경에서 검증했습니다. 실제 SuddenAttack에서도 게임에 포커스가 있는 동안 HUD가 계속 보이고, Overlay ON/OFF와 기존 F8 앱별 음소거·해제가 정상 동작하는 것을 수동으로 확인했습니다. 다른 독점 전체 화면 애플리케이션 위의 표시는 일반 WPF 창 방식으로 보장되지 않습니다.

@@ -22,9 +22,9 @@ MutePilot은 사용자가 지정한 전역 단축키로 Windows의 마스터 오
 
 Windows 마스터 오디오와 각 애플리케이션에 사용자 지정 전역 단축키를 설정·변경·삭제할 수 있습니다. 앱별 설정은 PID가 아니라 `ProcessName`으로 저장되므로 앱이 종료된 상태에서도 바인딩이 유지되고, 다시 실행되어 오디오 세션이 생기면 같은 설정을 사용할 수 있습니다. 설정은 `%LocalAppData%\MutePilot\settings.json`에 저장되며 MutePilot을 다시 실행할 때 복원됩니다.
 
-전역 단축키는 MutePilot이 실행 중일 때만 동작합니다. Whale 전역 단축키와 SuddenAttack foreground의 `Ctrl + Alt + F8`은 수동 검증했으며, 새 Raw Input 경로로 바꾼 단독 F키는 다시 수동 검증해야 합니다.
+전역 단축키는 MutePilot이 실행 중일 때만 동작합니다. Whale 전역 단축키와 SuddenAttack foreground의 `Ctrl + Alt + F8`은 수동 검증했으며, 새 polling 경로로 바꾼 단독 F키는 다시 수동 검증해야 합니다.
 
-Ctrl/Alt/Shift가 포함된 조합은 Windows `RegisterHotKey`를 사용합니다. F1~F11 단독 단축키는 fullscreen 프로그램에 포커스가 있을 때도 입력을 받을 수 있도록 Raw Input의 `RIDEV_INPUTSINK` 경로를 사용하며, foreground 프로그램에도 같은 F키 입력은 그대로 전달됩니다. 게임 자체 단축키와 충돌한다면 modifier 조합을 사용하는 편이 안전합니다. 이 개선 이후 SuddenAttack 안에서 단독 F8이 동작하는지는 아직 수동 검증 전입니다.
+Ctrl/Alt/Shift가 포함된 조합은 Windows `RegisterHotKey`를 사용합니다. F1~F11 단독 단축키는 현재 설정된 키만 `GetAsyncKeyState`로 확인하며, foreground 프로그램에도 같은 F키 입력은 그대로 전달됩니다. 게임 자체 단축키와 충돌한다면 modifier 조합을 사용하는 편이 안전합니다. 게임이 MutePilot보다 높은 권한으로 실행되면 Windows UIPI 제한으로 키 상태를 읽지 못할 수 있어 같은 권한 수준에서의 추가 확인이 필요할 수 있습니다. polling 방식으로 바꾼 뒤 SuddenAttack 안에서 단독 F7/F8이 동작하는지는 아직 수동 검증 전입니다.
 
 **사용자 지정 전역 단축키: 구현 완료 / modifier 조합 검증 완료 / 단독 F키 재검증 전**
 
@@ -47,7 +47,7 @@ Ctrl/Alt/Shift가 포함된 조합은 Windows `RegisterHotKey`를 사용합니�
 * Windows Core Audio APIs
 * NAudio.Wasapi 2.3.0
 * Windows `RegisterHotKey`, `UnregisterHotKey`, `WM_HOTKEY`
-* Windows Raw Input (`RegisterRawInputDevices`, `WM_INPUT`)
+* Windows `GetAsyncKeyState` 기반 단독 F키 polling
 * `%LocalAppData%`의 JSON 설정 저장
 
 Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능부터 단순하게 구현할 계획입니다.

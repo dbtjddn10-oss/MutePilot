@@ -65,11 +65,17 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * 볼륨 프리셋 적용 시 해당 대상을 음소거 해제하고 실제 결과를 다시 읽어 UI와 HUD에 반영
 * 여러 앱 session의 현재 볼륨이 다르면 `혼합`으로 표시하고 HUD에 음소거·볼륨 상태를 compact하게 함께 표시
 * 음소거와 볼륨 action을 포함한 모든 MutePilot 단축키 사이의 중복 검사 추가
+* Master Audio의 기본 장치 ID·볼륨·음소거 상태와 앱별 runtime session identity·볼륨·음소거 상태를 실행 중에만 보관하는 프리셋 toggle service 추가
+* 같은 앱의 여러 오디오 session이 서로 다른 볼륨·음소거 상태였을 때 session별 원래 상태를 정확히 복원하는 처리 추가
+* 앱 session 구성이 달라지거나 기본 playback endpoint가 바뀌면 이전 기본 상태를 새 대상에 적용하지 않는 무효화 처리 추가
 
 ### 변경
 
 * 시작·권한 영역 제목을 `실행 설정`으로 바꾸고 자동 실행 문구를 `Windows 로그인 시 MutePilot 자동 실행`으로 명확히 수정
 * 관리자 재실행 버튼 문구를 `MutePilot을 관리자 권한으로 재시작`으로 바꿔 Windows 재시작과 혼동하지 않도록 개선
+* 볼륨 프리셋 동작을 매번 고정값을 적용하던 방식에서 프리셋과 적용 직전의 실제 볼륨·음소거 상태를 오가는 방식으로 변경
+* 프리셋 수동 버튼과 전용 단축키가 같은 runtime 기본 상태를 공유하도록 연결하고, 활성 상태의 버튼 문구를 `기본 볼륨으로 복원`으로 변경
+* 프리셋 활성 중 slider를 바꿔도 실제 오디오와 이미 저장한 기본 상태는 유지하고, 복원 뒤 다음 주기부터 새 프리셋 값을 사용하도록 변경
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 
@@ -80,3 +86,5 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 시스템 트레이 기능은 실제 PC에서 X를 누른 뒤 main window만 숨고 process, tray icon, persistent HUD가 남는 것을 확인했습니다. 숨겨진 상태에서도 SuddenAttack 단독 F8 음소거·해제와 HUD 갱신이 계속 동작했습니다. Icon double-click 복원, 반복 hide/show, 트레이 `종료` 시 process·overlay·icon 정리도 정상 동작했습니다.
 
 일반 GUI의 startup UI와 일반 권한 표시, 실제 task OFF 조회, `--background` 창 숨김, overlay OFF/ON 복원, normal/background 중복 실행 종료, Mutex handoff 뒤 단일 process·tray 유지를 검증했습니다. 현재 일반 권한 환경의 `Highest` task 생성 시도는 Windows가 access denied로 차단했고 작업은 생성되지 않았습니다. 실제 UAC 승인에 따른 task 생성·삭제, Windows 로그인 자동 실행과 elevated 재실행은 아직 수동 검증하지 않았습니다.
+
+안전한 무음 Windows 오디오 session으로 일반 상태와 원래 음소거 상태 복원, 프리셋 중 별도 음소거, 활성 중 slider 변경, session 재시작, 서로 다른 두 session의 개별 복원을 확인했습니다. X로 메인 창을 tray에 숨긴 상태에서도 전용 단축키가 같은 기본 상태를 복원했고 HUD가 실제 볼륨을 갱신했습니다. 실제 SuddenAttack의 F1 음소거·F2 프리셋 toggle과 관리자 권한·tray 조합은 아직 수동 검증하지 않았습니다.

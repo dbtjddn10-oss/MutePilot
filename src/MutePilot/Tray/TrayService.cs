@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using MutePilot.Branding;
 
 namespace MutePilot.Tray;
 
@@ -27,7 +28,8 @@ public sealed class TrayService : ITrayService
             _exitMenuItem
         ]);
 
-        _icon = (Icon)SystemIcons.Application.Clone();
+        _icon = BrandingAssetService.TryCreateTrayIcon() ??
+            (Icon)SystemIcons.Application.Clone();
         _notifyIcon = new NotifyIcon
         {
             ContextMenuStrip = _contextMenu,

@@ -13,6 +13,7 @@
     <SolidColorBrush x:Key="AccentSoftBrush" Color="#173A66" />
     <SolidColorBrush x:Key="SuccessBrush" Color="#2DD4BF" />
     <SolidColorBrush x:Key="DangerBrush" Color="#FB7185" />
+    <SolidColorBrush x:Key="DangerSoftBrush" Color="#4A2231" />
     <SolidColorBrush x:Key="InputBackgroundBrush" Color="#0B1627" />
     <SolidColorBrush x:Key="SidebarSelectedBrush" Color="#183A63" />
 </ResourceDictionary>

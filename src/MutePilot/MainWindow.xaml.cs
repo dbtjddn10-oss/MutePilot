@@ -7,12 +7,14 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using MutePilot.Audio;
+using MutePilot.Branding;
 using MutePilot.Hotkeys;
 using MutePilot.Icons;
 using MutePilot.Overlay;
 using MutePilot.Security;
 using MutePilot.Settings;
 using MutePilot.Startup;
+using MutePilot.Support;
 using MutePilot.Tray;
 using MutePilot.Theming;
 using MutePilot.Volume;
@@ -54,6 +56,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Icon = BrandingAssetService.TryLoadWindowIcon();
+        BrandIconImage.Source = BrandingAssetService.TryLoadBrandIcon();
+        BrandIconContainer.Visibility = BrandIconImage.Source is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
         FitWindowToWorkArea();
         _volumePresetToggleService = new VolumePresetToggleService(_audioService);
         _overlayService = new OverlayService(Dispatcher);
@@ -512,6 +519,12 @@ public partial class MainWindow : Window
         {
             RestartAsAdministrator();
         }
+    }
+
+    private void SupportButton_Click(object sender, RoutedEventArgs e)
+    {
+        var supportWindow = new SupportWindow { Owner = this };
+        supportWindow.ShowDialog();
     }
 
     private void RestartAsAdministrator()
@@ -1548,7 +1561,9 @@ public partial class MainWindow : Window
             PrivilegeStatusText.Text = isElevated
                 ? "현재 실행 권한: 관리자 권한"
                 : "현재 실행 권한: 일반 권한";
-            AdminQuickButton.Content = isElevated ? "🛡 관리자 ON" : "🛡 관리자 OFF";
+            AdminQuickButton.Content = isElevated
+                ? "🛡 관리자모드 실행 ON"
+                : "🛡 관리자모드 실행 OFF";
             AdminQuickButton.ToolTip = isElevated
                 ? "일반 권한으로 재시작"
                 : "관리자 권한으로 재시작";

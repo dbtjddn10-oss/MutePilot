@@ -20,6 +20,21 @@
 
   <ItemGroup>
     <PackageReference Include="NAudio.Wasapi" Version="2.3.0" />
+    <PackageReference Include="QRCoder" Version="1.8.0" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="Exists('Assets\app-icon.ico')">
+    <ApplicationIcon>Assets\app-icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('Assets\app-icon.ico')">
+    <None Remove="Assets\app-icon.ico" />
+    <Resource Include="Assets\app-icon.ico" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('Assets\brand-icon.png')">
+    <None Remove="Assets\brand-icon.png" />
+    <Resource Include="Assets\brand-icon.png" />
   </ItemGroup>
 
 </Project>

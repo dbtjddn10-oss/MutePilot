@@ -85,7 +85,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="AdminQuickButton" Margin="0,0,7,0"
                             Style="{StaticResource QuickControlButtonStyle}"
-                            Click="AdminQuickButton_Click" Content="♢ 관리자 OFF"
+                            Click="AdminQuickButton_Click" Content="🛡 관리자모드 실행 OFF"
                             ToolTip="권한 변경은 MutePilot 재시작이 필요합니다." />
                     <Button x:Name="OverlayQuickButton"
                             Style="{StaticResource QuickControlButtonStyle}"
@@ -498,10 +498,16 @@
                         <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}" Padding="16">
                             <Grid>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel>
+                                <Border x:Name="BrandIconContainer" Width="46" Height="46" Margin="0,0,13,0"
+                                        VerticalAlignment="Center" Background="{DynamicResource AccentSoftBrush}"
+                                        CornerRadius="10" Visibility="Collapsed">
+                                    <Image x:Name="BrandIconImage" Width="38" Height="38" Stretch="Uniform" />
+                                </Border>
+                                <StackPanel Grid.Column="1">
                                     <TextBlock FontSize="10.5" FontWeight="SemiBold"
                                                Foreground="{DynamicResource AccentBrush}" Text="ABOUT" />
                                     <TextBlock Margin="0,4,0,0" FontSize="17" FontWeight="SemiBold" Text="MutePilot" />
@@ -509,11 +515,13 @@
                                                Foreground="{DynamicResource SecondaryTextBrush}"
                                                Text="Windows 앱별 음소거 및 볼륨 프리셋 단축키 유틸리티" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                     <TextBlock HorizontalAlignment="Right" FontSize="11"
                                                Foreground="{DynamicResource SecondaryTextBrush}" Text="Version v0.8.0" />
-                                    <TextBlock Margin="0,4,0,0" HorizontalAlignment="Right"
-                                               FontWeight="SemiBold" Text="Made by 유성우" />
+                                    <Button x:Name="SupportButton" Height="31" Margin="0,5,0,0"
+                                            Style="{StaticResource QuickControlButtonStyle}"
+                                            Click="SupportButton_Click" Content="Made by 유성우"
+                                            ToolTip="개발 후원 안내 열기" />
                                 </StackPanel>
                             </Grid>
                         </Border>

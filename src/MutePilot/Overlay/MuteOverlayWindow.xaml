@@ -14,24 +14,78 @@
         AllowsTransparency="True"
         Background="Transparent"
         LocationChanged="Window_LocationChanged">
+    <Window.Resources>
+        <Style x:Key="OverlayHeaderButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="21" />
+            <Setter Property="Height" Value="19" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ElevatedPanelBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Tag" Value="Locked">
+                                <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.75" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="OverlayCloseButtonStyle" TargetType="Button"
+               BasedOn="{StaticResource OverlayHeaderButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
     <Grid Margin="4">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
-            <Border x:Name="HudCard"
-                    Padding="9,7,9,8"
-                    Background="#FF171A20"
-                    BorderBrush="#343A46"
-                    BorderThickness="1"
-                    CornerRadius="7">
-                <StackPanel>
-                    <Grid Height="20" Margin="2,0,0,5">
+        <Border x:Name="HudCard"
+                Padding="9,7,9,8"
+                Background="#FF171A20"
+                BorderBrush="#343A46"
+                BorderThickness="1"
+                CornerRadius="7">
+            <Grid>
+                <StackPanel x:Name="FullHudPanel">
+                    <Grid Height="21" Margin="2,0,0,5">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="22" />
+                            <ColumnDefinition Width="24" />
+                            <ColumnDefinition Width="24" />
                             <ColumnDefinition Width="22" />
                         </Grid.ColumnDefinitions>
                         <Grid Grid.Column="0">
@@ -54,13 +108,19 @@
                             </Thumb>
                         </Grid>
                         <Button x:Name="HeaderLockButton" Grid.Column="1"
-                                Width="20" Height="18" Margin="0,0,2,0" Padding="0"
-                                BorderThickness="0" Background="#303641" Foreground="#E5E7EB"
-                                Focusable="False" FontFamily="Segoe UI Emoji" FontSize="9"
-                                Click="LockButton_Click" Content="🔒" ToolTip="오버레이 잠금 해제" />
-                        <Button x:Name="CloseButton" Grid.Column="2"
-                                Width="20" Height="18" Padding="0" BorderThickness="0"
-                                Background="#303641" Foreground="#E5E7EB" Focusable="False"
+                                Margin="0,0,3,0"
+                                Style="{StaticResource OverlayHeaderButtonStyle}"
+                                FontFamily="Segoe MDL2 Assets" FontSize="11.5"
+                                Click="LockButton_Click" Content="&#xE72E;"
+                                Tag="Locked" ToolTip="위치 잠금 해제" />
+                        <Button x:Name="MinimizeButton" Grid.Column="2"
+                                Margin="0,0,3,0"
+                                Style="{StaticResource OverlayHeaderButtonStyle}"
+                                FontFamily="Segoe UI Symbol" FontSize="12"
+                                Click="MinimizeButton_Click" Content="−"
+                                ToolTip="작게 접기" />
+                        <Button x:Name="CloseButton" Grid.Column="3"
+                                Style="{StaticResource OverlayCloseButtonStyle}"
                                 FontSize="13" Click="CloseButton_Click" Content="×"
                                 ToolTip="오버레이 끄기" />
                     </Grid>
@@ -101,9 +161,43 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
-            </Border>
 
-        </Grid>
+                <Grid x:Name="MiniHudPanel" Height="21" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="18" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="24" />
+                        <ColumnDefinition Width="21" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock VerticalAlignment="Center" FontSize="13" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentBrush}" Text="M" />
+                    <Grid Grid.Column="1" Margin="1,0,5,0">
+                        <TextBlock x:Name="MiniStatusText" VerticalAlignment="Center"
+                                   FontSize="10" Foreground="#EEF1F5"
+                                   Text="Master 확인 중" TextTrimming="CharacterEllipsis" />
+                        <Thumb x:Name="MiniDragSurface"
+                               Background="Transparent" Cursor="Arrow" Focusable="False"
+                               DragDelta="DragSurface_DragDelta"
+                               DragCompleted="DragSurface_DragCompleted">
+                            <Thumb.Template>
+                                <ControlTemplate TargetType="Thumb">
+                                    <Border Background="Transparent" />
+                                </ControlTemplate>
+                            </Thumb.Template>
+                        </Thumb>
+                    </Grid>
+                    <Button x:Name="RestoreButton" Grid.Column="2" Margin="0,0,3,0"
+                            Style="{StaticResource OverlayHeaderButtonStyle}"
+                            FontFamily="Segoe MDL2 Assets" FontSize="10.5"
+                            Click="RestoreButton_Click" Content="&#xE73F;"
+                            ToolTip="전체 오버레이 펼치기" />
+                    <Button x:Name="MiniCloseButton" Grid.Column="3"
+                            Style="{StaticResource OverlayCloseButtonStyle}"
+                            FontSize="13" Click="CloseButton_Click" Content="×"
+                            ToolTip="오버레이 끄기" />
+                </Grid>
+            </Grid>
+        </Border>
 
         <Border x:Name="ConfigurationPanel"
                 Grid.Row="1"
@@ -120,27 +214,15 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="36" />
                 </Grid.ColumnDefinitions>
-                <TextBlock VerticalAlignment="Center"
-                           FontSize="10"
-                           Foreground="#C7CDD8"
-                           Text="투명도" />
-                <Slider x:Name="OpacitySlider"
-                        Grid.Column="1"
-                        Height="18"
-                        Margin="8,0,5,0"
-                        VerticalAlignment="Center"
-                        Focusable="False"
-                        Minimum="20"
-                        Maximum="100"
-                        Value="100"
+                <TextBlock VerticalAlignment="Center" FontSize="10"
+                           Foreground="#C7CDD8" Text="투명도" />
+                <Slider x:Name="OpacitySlider" Grid.Column="1" Height="18"
+                        Margin="8,0,5,0" VerticalAlignment="Center" Focusable="False"
+                        Minimum="20" Maximum="100" Value="100"
                         ValueChanged="OpacitySlider_ValueChanged" />
-                <TextBlock x:Name="OpacityValueText"
-                           Grid.Column="2"
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Right"
-                           FontSize="10"
-                           Foreground="#C7CDD8"
-                           Text="100%" />
+                <TextBlock x:Name="OpacityValueText" Grid.Column="2"
+                           VerticalAlignment="Center" HorizontalAlignment="Right"
+                           FontSize="10" Foreground="#C7CDD8" Text="100%" />
             </Grid>
         </Border>
     </Grid>

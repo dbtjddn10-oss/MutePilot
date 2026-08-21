@@ -19,12 +19,15 @@ public partial class MuteOverlayWindow : Window
     private const uint MonitorDefaultToNearest = 0x00000002;
     private const int MaximumApplicationRows = 7;
     private const double WorkAreaMargin = 12;
+    private const double ExpandedWidth = 252;
+    private const double MinimizedWidth = 176;
 
     private readonly DispatcherTimer _configurationCommitTimer;
     private HwndSource? _windowSource;
     private bool _isApplyingConfiguration;
     private bool _isFullscreenDisplayOnly;
     private bool _isLocked = true;
+    private bool _isMinimized;
     private double _overlayOpacity = 1.0;
 
     public MuteOverlayWindow()
@@ -88,6 +91,9 @@ public partial class MuteOverlayWindow : Window
         }
 
         TargetItemsControl.ItemsSource = rows;
+        MiniStatusText.Text = rows.Count > 0
+            ? $"Master {rows[0].StatusText}"
+            : "Master 확인 중";
         UpdateLayout();
         EnsurePositionOnScreen();
     }
@@ -171,6 +177,32 @@ public partial class MuteOverlayWindow : Window
         }
     }
 
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isFullscreenDisplayOnly)
+        {
+            return;
+        }
+
+        _isMinimized = true;
+        ApplyInteractionState();
+        UpdateLayout();
+        EnsurePositionOnScreen();
+    }
+
+    private void RestoreButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isFullscreenDisplayOnly)
+        {
+            return;
+        }
+
+        _isMinimized = false;
+        ApplyInteractionState();
+        UpdateLayout();
+        EnsurePositionOnScreen();
+    }
+
     private void AudioToggleButton_Click(object sender, RoutedEventArgs e)
     {
         if (!_isFullscreenDisplayOnly && sender is System.Windows.Controls.Button { Tag: string targetId })
@@ -247,27 +279,43 @@ public partial class MuteOverlayWindow : Window
 
     private void ApplyInteractionState()
     {
-        if (HeaderLockButton is null || CloseButton is null || ConfigurationPanel is null ||
-            DragSurface is null || TargetItemsControl is null)
+        if (HeaderLockButton is null || MinimizeButton is null || CloseButton is null ||
+            RestoreButton is null || MiniCloseButton is null || ConfigurationPanel is null ||
+            DragSurface is null || MiniDragSurface is null || TargetItemsControl is null ||
+            FullHudPanel is null || MiniHudPanel is null)
         {
             return;
         }
 
+        Width = _isMinimized ? MinimizedWidth : ExpandedWidth;
+        FullHudPanel.Visibility = _isMinimized ? Visibility.Collapsed : Visibility.Visible;
+        MiniHudPanel.Visibility = _isMinimized ? Visibility.Visible : Visibility.Collapsed;
         HeaderLockButton.Visibility = _isFullscreenDisplayOnly
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        MinimizeButton.Visibility = _isFullscreenDisplayOnly
             ? Visibility.Collapsed
             : Visibility.Visible;
         CloseButton.Visibility = _isFullscreenDisplayOnly
             ? Visibility.Collapsed
             : Visibility.Visible;
-        HeaderLockButton.Content = _isLocked ? "🔒" : "🔓";
-        HeaderLockButton.ToolTip = _isLocked ? "오버레이 잠금 해제" : "오버레이 잠금";
+        RestoreButton.Visibility = _isFullscreenDisplayOnly
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        MiniCloseButton.Visibility = _isFullscreenDisplayOnly
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        HeaderLockButton.Content = _isLocked ? "\uE72E" : "\uE785";
+        HeaderLockButton.Tag = _isLocked ? "Locked" : "Unlocked";
+        HeaderLockButton.ToolTip = _isLocked ? "위치 잠금 해제" : "위치 잠금";
         TargetItemsControl.IsHitTestVisible = !_isFullscreenDisplayOnly;
-        ConfigurationPanel.Visibility = !_isFullscreenDisplayOnly && !_isLocked
+        ConfigurationPanel.Visibility = !_isMinimized && !_isFullscreenDisplayOnly && !_isLocked
             ? Visibility.Visible
             : Visibility.Collapsed;
         DragSurface.Cursor = !_isFullscreenDisplayOnly && !_isLocked
             ? Cursors.SizeAll
             : Cursors.Arrow;
+        MiniDragSurface.Cursor = DragSurface.Cursor;
         SetNativeClickThrough(_isFullscreenDisplayOnly);
     }
 

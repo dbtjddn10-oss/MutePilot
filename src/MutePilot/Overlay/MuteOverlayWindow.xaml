@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MutePilot Overlay"
-        Width="252"
+        Width="390"
         SizeToContent="Height"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -130,20 +130,14 @@
                     <ItemsControl x:Name="TargetItemsControl">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Height="23">
+                                <Grid Height="27">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="26" />
-                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="86" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="44" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Margin="2,0,8,0"
-                                               VerticalAlignment="Center"
-                                               FontSize="11"
-                                               Foreground="#EEF1F5"
-                                               Opacity="{Binding Opacity}"
-                                               Text="{Binding Name}"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <Button Grid.Column="1" Width="22" Height="20" Padding="0"
+                                    <Button Grid.Column="0" Width="22" Height="20" Padding="0"
                                             BorderThickness="0" Background="#303641"
                                             Foreground="{Binding StatusBrush}" Focusable="False"
                                             FontFamily="Segoe UI Emoji" FontSize="10.5"
@@ -152,12 +146,33 @@
                                             IsEnabled="{Binding CanToggle}"
                                             Tag="{Binding TargetId}"
                                             ToolTip="음소거 상태 전환" />
-                                    <TextBlock Grid.Column="2"
+                                    <TextBlock Grid.Column="1" Margin="2,0,8,0"
+                                               VerticalAlignment="Center"
+                                               FontSize="11"
+                                               Foreground="#EEF1F5"
+                                               Opacity="{Binding Opacity}"
+                                               Text="{Binding Name}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <Slider Grid.Column="2" Height="20" Margin="2,0,7,0"
+                                            VerticalAlignment="Center" Minimum="0" Maximum="100"
+                                            SmallChange="1" LargeChange="5" TickFrequency="1"
+                                            IsMoveToPointEnabled="True" Focusable="False"
+                                            IsEnabled="{Binding CanAdjustVolume}"
+                                            Visibility="{Binding VolumeControlVisibility}"
+                                            Value="{Binding VolumePercent, Mode=OneWay}"
+                                            Tag="{Binding TargetId}"
+                                            AutomationProperties.Name="{Binding VolumeSliderName}"
+                                            PreviewMouseLeftButtonDown="VolumeSlider_PreviewMouseLeftButtonDown"
+                                            PreviewMouseLeftButtonUp="VolumeSlider_PreviewMouseLeftButtonUp"
+                                            ValueChanged="VolumeSlider_ValueChanged"
+                                            ToolTip="현재 볼륨" />
+                                    <TextBlock Grid.Column="3"
                                                VerticalAlignment="Center"
                                                FontSize="10.5"
                                                Foreground="{Binding StatusBrush}"
                                                Opacity="{Binding Opacity}"
-                                               Text="{Binding StatusText}" />
+                                               TextAlignment="Right"
+                                               Text="{Binding VolumeText}" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

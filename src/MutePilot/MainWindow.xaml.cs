@@ -73,6 +73,7 @@ public partial class MainWindow : Window
         _overlayService.ConfigurationChanged += OverlayService_ConfigurationChanged;
         _overlayService.CloseRequested += OverlayService_CloseRequested;
         _overlayService.MuteToggleRequested += OverlayService_MuteToggleRequested;
+        _overlayService.VolumeChangeRequested += OverlayService_VolumeChangeRequested;
         _trayService = new TrayService();
         _trayService.OpenRequested += TrayService_OpenRequested;
         _trayService.OverlayToggleRequested += TrayService_OverlayToggleRequested;
@@ -171,6 +172,7 @@ public partial class MainWindow : Window
         _overlayService.ConfigurationChanged -= OverlayService_ConfigurationChanged;
         _overlayService.CloseRequested -= OverlayService_CloseRequested;
         _overlayService.MuteToggleRequested -= OverlayService_MuteToggleRequested;
+        _overlayService.VolumeChangeRequested -= OverlayService_VolumeChangeRequested;
         _overlayService.Dispose();
         _trayService.OpenRequested -= TrayService_OpenRequested;
         _trayService.OverlayToggleRequested -= TrayService_OverlayToggleRequested;
@@ -585,6 +587,60 @@ public partial class MainWindow : Window
         object? sender,
         OverlayMuteToggleRequestedEventArgs e) =>
         RunOnUiThread(() => ToggleMuteFromOverlay(e.TargetId));
+
+    private void OverlayService_VolumeChangeRequested(
+        object? sender,
+        OverlayVolumeChangeRequestedEventArgs e) =>
+        RunOnUiThread(() => SetLiveVolumeFromOverlay(e));
+
+    private void SetLiveVolumeFromOverlay(OverlayVolumeChangeRequestedEventArgs request)
+    {
+        try
+        {
+            if (string.Equals(
+                    request.TargetId,
+                    HotkeyBinding.MasterTargetId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _masterVolumePercent = _audioService.SetMasterVolumePercent(
+                    request.VolumePercent);
+            }
+            else
+            {
+                var session = _activeApplicationSessions.FirstOrDefault(candidate => string.Equals(
+                    HotkeyBinding.GetApplicationTargetId(candidate.ApplicationKey),
+                    request.TargetId,
+                    StringComparison.OrdinalIgnoreCase));
+
+                if (session is null)
+                {
+                    if (request.IsFinal)
+                    {
+                        _ = RefreshOverlayAudioStateAsync();
+                    }
+
+                    return;
+                }
+
+                _audioService.SetApplicationVolumePercent(
+                    session.ApplicationKey,
+                    request.VolumePercent);
+            }
+
+            _audioStateRevision++;
+
+            if (request.IsFinal)
+            {
+                _ = RefreshOverlayAudioStateAsync();
+            }
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            ShowHotkeyError("오버레이에서 현재 볼륨을 변경하지 못했습니다.");
+            _ = RefreshOverlayAudioStateAsync();
+        }
+    }
 
     private void ToggleMuteFromOverlay(string targetId)
     {

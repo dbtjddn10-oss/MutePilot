@@ -33,8 +33,27 @@ public sealed class AudioService : IAudioService
 
     public int SetMasterVolumePercent(int percent)
     {
-        var current = CaptureMasterVolumeSnapshot();
-        return ApplyMasterVolumePreset(current, percent).VolumePercent;
+        var normalizedPercent = NormalizeVolumePercent(percent);
+
+        return UseDefaultOutputDevice(
+            device =>
+            {
+                var muteState = device.AudioEndpointVolume.Mute;
+                device.AudioEndpointVolume.MasterVolumeLevelScalar = normalizedPercent / 100f;
+                var appliedPercent = ToVolumePercent(
+                    device.AudioEndpointVolume.MasterVolumeLevelScalar);
+
+                if (device.AudioEndpointVolume.Mute != muteState ||
+                    Math.Abs(appliedPercent - normalizedPercent) > 1)
+                {
+                    throw new AudioServiceException(
+                        "Master Audio 현재 볼륨을 정확히 변경하지 못했습니다.",
+                        new InvalidOperationException("The live master volume differs from the request."));
+                }
+
+                return appliedPercent;
+            },
+            $"현재 볼륨을 {normalizedPercent}%로 설정");
     }
 
     public MasterVolumeSnapshot ApplyMasterVolumePreset(
@@ -151,8 +170,25 @@ public sealed class AudioService : IAudioService
         string applicationKey,
         int percent)
     {
-        var snapshot = CaptureApplicationVolumeSnapshot(applicationKey);
-        return ApplyApplicationVolumePreset(snapshot, percent);
+        ArgumentException.ThrowIfNullOrWhiteSpace(applicationKey);
+        var normalizedPercent = NormalizeVolumePercent(percent);
+
+        return UseDefaultOutputDevice(
+            device =>
+            {
+                SetApplicationLiveVolume(device, applicationKey, normalizedPercent);
+                var aggregate = AggregateApplicationSessions(
+                        ReadApplicationSessionSnapshots(device))
+                    .FirstOrDefault(session => string.Equals(
+                        session.ApplicationKey,
+                        applicationKey,
+                        StringComparison.OrdinalIgnoreCase));
+
+                return aggregate ?? throw new AudioServiceException(
+                    "변경한 애플리케이션 오디오 세션을 다시 확인할 수 없습니다.",
+                    new InvalidOperationException("The updated application session disappeared."));
+            },
+            $"{applicationKey} 현재 볼륨을 {normalizedPercent}%로 설정");
     }
 
     public ApplicationVolumeSnapshot CaptureApplicationVolumeSnapshot(string applicationKey)
@@ -350,6 +386,74 @@ public sealed class AudioService : IAudioService
             updatedSessionCount,
             failures,
             "오디오 세션");
+    }
+
+    private static void SetApplicationLiveVolume(
+        MMDevice device,
+        string applicationKey,
+        int percent)
+    {
+        var sessionManager = device.AudioSessionManager;
+        sessionManager.RefreshSessions();
+        var sessions = sessionManager.Sessions;
+        var sessionCount = sessions.Count;
+        var matchedSessionCount = 0;
+        var updatedSessionCount = 0;
+        var failures = new List<Exception>();
+        var scalar = percent / 100f;
+
+        for (var index = 0; index < sessionCount; index++)
+        {
+            try
+            {
+                using var session = sessions[index];
+                var identity = TryReadSessionIdentity(session);
+
+                if (identity is null || !string.Equals(
+                        identity.ProcessName,
+                        applicationKey,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                matchedSessionCount++;
+
+                try
+                {
+                    var muteState = session.SimpleAudioVolume.Mute;
+                    session.SimpleAudioVolume.Volume = scalar;
+
+                    if (session.SimpleAudioVolume.Mute != muteState ||
+                        Math.Abs(session.SimpleAudioVolume.Volume - scalar) >
+                        ScalarComparisonTolerance)
+                    {
+                        throw new InvalidOperationException(
+                            "The live application volume differs from the request.");
+                    }
+
+                    updatedSessionCount++;
+                }
+                catch (Exception exception)
+                {
+                    failures.Add(exception);
+                    Debug.WriteLine(
+                        $"Audio session {index} live volume could not be updated: {exception}");
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.WriteLine(
+                    $"Audio session {index} disappeared while updating live volume: {exception}");
+            }
+        }
+
+        ThrowIfApplicationUpdateFailed(
+            applicationKey,
+            matchedSessionCount,
+            updatedSessionCount,
+            failures,
+            "현재 볼륨");
     }
 
     private static ApplicationAudioSession ChangeApplicationSessionStates(

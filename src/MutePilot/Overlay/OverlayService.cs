@@ -43,6 +43,8 @@ public sealed class OverlayService : IOverlayService
 
     public event EventHandler<OverlayMuteToggleRequestedEventArgs>? MuteToggleRequested;
 
+    public event EventHandler<OverlayVolumeChangeRequestedEventArgs>? VolumeChangeRequested;
+
     public bool IsEnabled => _isEnabled;
 
     public bool IsFullscreenDisplayOnly => _isFullscreenDisplayOnly;
@@ -134,6 +136,7 @@ public sealed class OverlayService : IOverlayService
             _window.ConfigurationChanged -= Window_ConfigurationChanged;
             _window.CloseRequested -= Window_CloseRequested;
             _window.MuteToggleRequested -= Window_MuteToggleRequested;
+            _window.VolumeChangeRequested -= Window_VolumeChangeRequested;
             _window.Close();
             _window = null;
         }
@@ -169,6 +172,7 @@ public sealed class OverlayService : IOverlayService
             window.ConfigurationChanged += Window_ConfigurationChanged;
             window.CloseRequested += Window_CloseRequested;
             window.MuteToggleRequested += Window_MuteToggleRequested;
+            window.VolumeChangeRequested += Window_VolumeChangeRequested;
             _window = window;
         }
 
@@ -230,6 +234,10 @@ public sealed class OverlayService : IOverlayService
     private void Window_MuteToggleRequested(
         object? sender,
         OverlayMuteToggleRequestedEventArgs e) => MuteToggleRequested?.Invoke(this, e);
+
+    private void Window_VolumeChangeRequested(
+        object? sender,
+        OverlayVolumeChangeRequestedEventArgs e) => VolumeChangeRequested?.Invoke(this, e);
 
     private static OverlayConfiguration NormalizeConfiguration(OverlayConfiguration configuration)
     {

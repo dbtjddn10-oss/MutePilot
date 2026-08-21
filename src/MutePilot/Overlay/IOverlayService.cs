@@ -8,6 +8,8 @@ public interface IOverlayService : IDisposable
 
     event EventHandler<OverlayMuteToggleRequestedEventArgs>? MuteToggleRequested;
 
+    event EventHandler<OverlayVolumeChangeRequestedEventArgs>? VolumeChangeRequested;
+
     bool IsEnabled { get; }
 
     bool IsFullscreenDisplayOnly { get; }
@@ -36,6 +38,18 @@ public sealed class OverlayConfigurationChangedEventArgs(
 public sealed class OverlayMuteToggleRequestedEventArgs(string targetId) : EventArgs
 {
     public string TargetId { get; } = targetId;
+}
+
+public sealed class OverlayVolumeChangeRequestedEventArgs(
+    string targetId,
+    int volumePercent,
+    bool isFinal) : EventArgs
+{
+    public string TargetId { get; } = targetId;
+
+    public int VolumePercent { get; } = Math.Clamp(volumePercent, 0, 100);
+
+    public bool IsFinal { get; } = isFinal;
 }
 
 public sealed record OverlayTargetState(

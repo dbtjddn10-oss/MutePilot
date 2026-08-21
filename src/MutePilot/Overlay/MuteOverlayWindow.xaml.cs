@@ -1,5 +1,7 @@
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
 using System.Windows.Input;
@@ -20,12 +22,18 @@ public partial class MuteOverlayWindow : Window
     private const uint MonitorDefaultToNearest = 0x00000002;
     private const int MaximumApplicationRows = 7;
     private const double WorkAreaMargin = 12;
-    private const double ExpandedWidth = 252;
+    private const double ExpandedWidth = 390;
     private const double MinimizedWidth = 176;
+    private static readonly TimeSpan LiveVolumeApplyInterval = TimeSpan.FromMilliseconds(60);
 
     private readonly DispatcherTimer _configurationCommitTimer;
+    private readonly DispatcherTimer _liveVolumeApplyTimer;
+    private readonly Dictionary<string, int> _pendingLiveVolumes =
+        new(StringComparer.OrdinalIgnoreCase);
     private HwndSource? _windowSource;
+    private string? _activeVolumeTargetId;
     private bool _isApplyingConfiguration;
+    private bool _isApplyingTargetSnapshot;
     private bool _isFullscreenDisplayOnly;
     private bool _isLocked = true;
     private bool _isMinimized;
@@ -48,6 +56,12 @@ public partial class MuteOverlayWindow : Window
             ConfigurationCommitTimer_Tick,
             Dispatcher);
         _configurationCommitTimer.Stop();
+        _liveVolumeApplyTimer = new DispatcherTimer(
+            LiveVolumeApplyInterval,
+            DispatcherPriority.Input,
+            LiveVolumeApplyTimer_Tick,
+            Dispatcher);
+        _liveVolumeApplyTimer.Stop();
     }
 
     public event EventHandler<OverlayConfigurationChangedEventArgs>? ConfigurationChanged;
@@ -55,6 +69,8 @@ public partial class MuteOverlayWindow : Window
     public event EventHandler? CloseRequested;
 
     public event EventHandler<OverlayMuteToggleRequestedEventArgs>? MuteToggleRequested;
+
+    public event EventHandler<OverlayVolumeChangeRequestedEventArgs>? VolumeChangeRequested;
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -73,6 +89,8 @@ public partial class MuteOverlayWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _configurationCommitTimer.Stop();
+        _liveVolumeApplyTimer.Stop();
+        _pendingLiveVolumes.Clear();
         _windowSource?.RemoveHook(WindowMessageHook);
         _windowSource = null;
         base.OnClosed(e);
@@ -80,31 +98,48 @@ public partial class MuteOverlayWindow : Window
 
     public void UpdateTargets(IReadOnlyList<OverlayTargetState> targets)
     {
-        var master = targets.Take(1);
-        var applications = targets.Skip(1).Take(MaximumApplicationRows);
-        var rows = master.Concat(applications)
-            .Select(CreateRow)
-            .ToList();
-        var hiddenCount = Math.Max(0, targets.Count - rows.Count);
-
-        if (hiddenCount > 0)
+        if (_activeVolumeTargetId is not null)
         {
-            rows.Add(new OverlayTargetRow(
-                string.Empty,
-                $"외 {hiddenCount}개",
-                string.Empty,
-                string.Empty,
-                Brushes.Gray,
-                0.65,
-                false));
+            return;
         }
 
-        TargetItemsControl.ItemsSource = rows;
-        MiniStatusText.Text = rows.Count > 0
-            ? $"Master {rows[0].StatusText}"
-            : "Master 확인 중";
-        UpdateLayout();
-        EnsurePositionOnScreen();
+        _isApplyingTargetSnapshot = true;
+
+        try
+        {
+            var master = targets.Take(1);
+            var applications = targets.Skip(1).Take(MaximumApplicationRows);
+            var rows = master.Concat(applications)
+                .Select(CreateRow)
+                .ToList();
+            var hiddenCount = Math.Max(0, targets.Count - rows.Count);
+
+            if (hiddenCount > 0)
+            {
+                rows.Add(new OverlayTargetRow(
+                    string.Empty,
+                    $"외 {hiddenCount}개",
+                    string.Empty,
+                    string.Empty,
+                    Brushes.Gray,
+                    0.65,
+                    false,
+                    false,
+                    0,
+                    Visibility.Collapsed));
+            }
+
+            TargetItemsControl.ItemsSource = rows;
+            MiniStatusText.Text = rows.Count > 0
+                ? $"Master {rows[0].StatusText}"
+                : "Master 확인 중";
+            UpdateLayout();
+            EnsurePositionOnScreen();
+        }
+        finally
+        {
+            _isApplyingTargetSnapshot = false;
+        }
     }
 
     public void ApplyConfiguration(OverlayConfiguration configuration)
@@ -151,6 +186,12 @@ public partial class MuteOverlayWindow : Window
         }
 
         _isFullscreenDisplayOnly = isFullscreenDisplayOnly;
+
+        if (isFullscreenDisplayOnly)
+        {
+            CancelPendingLiveVolumeChanges();
+        }
+
         ApplyInteractionState();
         UpdateLayout();
         EnsurePositionOnScreen();
@@ -219,6 +260,109 @@ public partial class MuteOverlayWindow : Window
             MuteToggleRequested?.Invoke(
                 this,
                 new OverlayMuteToggleRequestedEventArgs(targetId));
+        }
+    }
+
+    private void VolumeSlider_PreviewMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (_isFullscreenDisplayOnly ||
+            sender is not Slider { IsEnabled: true, DataContext: OverlayTargetRow row })
+        {
+            return;
+        }
+
+        _activeVolumeTargetId = row.TargetId;
+    }
+
+    private void VolumeSlider_ValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isApplyingTargetSnapshot ||
+            _isFullscreenDisplayOnly ||
+            sender is not Slider { IsEnabled: true, DataContext: OverlayTargetRow row })
+        {
+            return;
+        }
+
+        var percent = Math.Clamp(
+            (int)Math.Round(e.NewValue, MidpointRounding.AwayFromZero),
+            0,
+            100);
+        row.SetVolumePercent(percent);
+        _pendingLiveVolumes[row.TargetId] = percent;
+
+        if (!_liveVolumeApplyTimer.IsEnabled)
+        {
+            _liveVolumeApplyTimer.Start();
+        }
+    }
+
+    private void VolumeSlider_PreviewMouseLeftButtonUp(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (_isFullscreenDisplayOnly ||
+            sender is not Slider { IsEnabled: true, DataContext: OverlayTargetRow row })
+        {
+            return;
+        }
+
+        var percent = Math.Clamp(
+            (int)Math.Round(((Slider)sender).Value, MidpointRounding.AwayFromZero),
+            0,
+            100);
+        row.SetVolumePercent(percent);
+        _pendingLiveVolumes.Remove(row.TargetId);
+        VolumeChangeRequested?.Invoke(
+            this,
+            new OverlayVolumeChangeRequestedEventArgs(row.TargetId, percent, true));
+        _activeVolumeTargetId = null;
+
+        if (_pendingLiveVolumes.Count == 0)
+        {
+            _liveVolumeApplyTimer.Stop();
+        }
+    }
+
+    private void LiveVolumeApplyTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_isFullscreenDisplayOnly)
+        {
+            CancelPendingLiveVolumeChanges();
+            return;
+        }
+
+        var changes = _pendingLiveVolumes.ToArray();
+        _pendingLiveVolumes.Clear();
+
+        foreach (var change in changes)
+        {
+            VolumeChangeRequested?.Invoke(
+                this,
+                new OverlayVolumeChangeRequestedEventArgs(
+                    change.Key,
+                    change.Value,
+                    false));
+        }
+
+        if (_pendingLiveVolumes.Count == 0)
+        {
+            _liveVolumeApplyTimer.Stop();
+        }
+    }
+
+    private void CancelPendingLiveVolumeChanges()
+    {
+        _liveVolumeApplyTimer.Stop();
+        _pendingLiveVolumes.Clear();
+        _activeVolumeTargetId = null;
+
+        if (Mouse.Captured is not null)
+        {
+            Mouse.Capture(null);
         }
     }
 
@@ -404,11 +548,12 @@ public partial class MuteOverlayWindow : Window
 
     private static OverlayTargetRow CreateRow(OverlayTargetState target)
     {
-        var volumeText = target.HasMixedVolume
-            ? "혼합"
-            : target.VolumePercent is int percent
-                ? $"{percent}%"
-                : string.Empty;
+        var volumePercent = Math.Clamp(target.VolumePercent ?? 0, 0, 100);
+        var volumeText = target.VolumePercent is null
+            ? string.Empty
+            : target.HasMixedVolume
+                ? $"혼합 · {volumePercent}%"
+                : $"{volumePercent}%";
 
         return target.Status switch
         {
@@ -419,7 +564,10 @@ public partial class MuteOverlayWindow : Window
                 "🔇",
                 Brushes.LightCoral,
                 1,
-                true),
+                true,
+                target.VolumePercent is not null,
+                volumePercent,
+                Visibility.Visible),
             OverlayTargetStatus.Unmuted => new OverlayTargetRow(
                 target.TargetId,
                 target.DisplayName,
@@ -427,19 +575,43 @@ public partial class MuteOverlayWindow : Window
                 "🔊",
                 Brushes.LightGreen,
                 1,
-                true),
+                true,
+                target.VolumePercent is not null,
+                volumePercent,
+                Visibility.Visible),
             OverlayTargetStatus.Mixed => new OverlayTargetRow(
                 target.TargetId,
                 target.DisplayName,
-                string.IsNullOrEmpty(volumeText) ? "혼합" : $"혼합 · {volumeText}",
+                string.IsNullOrEmpty(volumeText) ? "혼합" : volumeText,
                 "◐",
                 Brushes.Khaki,
                 1,
-                true),
+                true,
+                target.VolumePercent is not null,
+                volumePercent,
+                Visibility.Visible),
             OverlayTargetStatus.NotRunning => new OverlayTargetRow(
-                target.TargetId, target.DisplayName, "실행 안 됨", "—", Brushes.Gray, 0.68, false),
+                target.TargetId,
+                target.DisplayName,
+                "실행 안 됨",
+                "—",
+                Brushes.Gray,
+                0.68,
+                false,
+                false,
+                0,
+                Visibility.Visible),
             _ => new OverlayTargetRow(
-                target.TargetId, target.DisplayName, "확인 중", "—", Brushes.Gray, 0.68, false)
+                target.TargetId,
+                target.DisplayName,
+                "확인 중",
+                "—",
+                Brushes.Gray,
+                0.68,
+                false,
+                false,
+                volumePercent,
+                Visibility.Visible)
         };
     }
 
@@ -506,12 +678,62 @@ public partial class MuteOverlayWindow : Window
         public uint Flags;
     }
 
-    private sealed record OverlayTargetRow(
-        string TargetId,
-        string Name,
-        string StatusText,
-        string ToggleGlyph,
-        Brush StatusBrush,
-        double Opacity,
-        bool CanToggle);
+    private sealed class OverlayTargetRow(
+        string targetId,
+        string name,
+        string statusText,
+        string toggleGlyph,
+        Brush statusBrush,
+        double opacity,
+        bool canToggle,
+        bool canAdjustVolume,
+        int volumePercent,
+        Visibility volumeControlVisibility) : INotifyPropertyChanged
+    {
+        private int _volumePercent = Math.Clamp(volumePercent, 0, 100);
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public string TargetId { get; } = targetId;
+
+        public string Name { get; } = name;
+
+        public string StatusText { get; } = statusText;
+
+        public string ToggleGlyph { get; } = toggleGlyph;
+
+        public Brush StatusBrush { get; } = statusBrush;
+
+        public double Opacity { get; } = opacity;
+
+        public bool CanToggle { get; } = canToggle;
+
+        public bool CanAdjustVolume { get; } = canAdjustVolume;
+
+        public Visibility VolumeControlVisibility { get; } = volumeControlVisibility;
+
+        public int VolumePercent => _volumePercent;
+
+        public string VolumeText => CanAdjustVolume ? $"{_volumePercent}%" : StatusText;
+
+        public string VolumeSliderName => $"{Name} 현재 볼륨";
+
+        public void SetVolumePercent(int percent)
+        {
+            var normalized = Math.Clamp(percent, 0, 100);
+
+            if (_volumePercent == normalized)
+            {
+                return;
+            }
+
+            _volumePercent = normalized;
+            PropertyChanged?.Invoke(
+                this,
+                new PropertyChangedEventArgs(nameof(VolumePercent)));
+            PropertyChanged?.Invoke(
+                this,
+                new PropertyChangedEventArgs(nameof(VolumeText)));
+        }
+    }
 }

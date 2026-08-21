@@ -84,7 +84,9 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * About의 일반 저자 표기 `Made by 유성우` 옆에 별도 `후원하기` 버튼과 개발 후원 창 추가
 * Toss에서 생성한 `toss-support-qr.jpg`를 우선 표시하고, 파일을 읽지 못할 때 QRCoder 계좌정보 QR로 돌아가는 fallback 추가
 * 계좌번호를 clipboard에 넣고 창 안에 한국어 성공·실패 결과를 표시하는 복사 버튼 추가
-* 실제 `app-icon.ico`를 executable·MainWindow·taskbar·tray에, `brand-icon.png`를 Sidebar·About·mini-HUD에 연결
+* 실제 `app-icon.ico`를 executable·MainWindow·taskbar·tray에, `brand-icon.png`를 Sidebar·About에, `brand-icon-small.png`를 mini-HUD에 연결
+* 전체 Overlay HUD의 Master와 실행 중인 저장 앱 행에 현재 볼륨을 0~100% 범위로 바로 조절하는 슬라이더 추가
+* Release `win-x64` self-contained publish와 Inno Setup 패키징을 자동화하는 `scripts/build-installer.ps1` 및 `installer/MutePilot.iss` 추가
 
 ### 변경
 
@@ -108,6 +110,7 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * Overlay의 lock/unlock을 `Segoe MDL2 Assets` 자물쇠 glyph와 서로 다른 색상·tooltip으로 구분하고 접기·닫기 hover 상태를 theme resource에 연결
 * 상단 관리자 quick control의 XAML 기본값과 runtime 갱신 문구를 `관리자모드 실행 ON/OFF`로 통일해 MutePilot process의 권한 상태임을 명확히 표시
 * 내부 브랜드 이미지는 `brand-icon.png`, mini-HUD는 전용 `brand-icon-small.png`를 사용하고 WPF 고품질 비율 유지 scaling을 적용
+* Overlay 볼륨 조절을 저장 프리셋·단축키·기본 상태와 분리한 현재 세션 전용 동작으로 구성하고, 음소거 상태를 바꾸지 않도록 보완
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 

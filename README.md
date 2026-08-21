@@ -10,7 +10,7 @@ MutePilot은 사용자가 지정한 전역 단축키로 Windows의 마스터 오
 
 ## 현재 개발 상태
 
-현재는 **v0.8 테마 UI와 프리셋 입력 개발 단계**입니다.
+현재는 **v1.0.0 Windows 배포 준비 단계**입니다.
 
 메인 화면을 네이비·차콜 기반의 사이드바 대시보드로 다시 구성했습니다. 탐색은 같은 `MainWindow` 안의 `홈 / 대시보드`와 `실행 설정` 두 화면으로 단순화했습니다. 앱을 열면 Master Audio와 Application Audio가 함께 있는 대시보드가 먼저 보이며, 오버레이·Windows 시작·실행 권한·About은 실행 설정 화면에 모았습니다. 기본 창 크기는 1100×740 WPF DIP이고 현재 화면 작업 영역이 작으면 그 안에 맞춰 열립니다.
 
@@ -48,6 +48,8 @@ MutePilot은 설정한 키를 관찰할 뿐 차단하거나 다른 입력으로 
 
 전체 화면 앱이 foreground일 때 HUD는 마우스 클릭과 키보드 포커스를 가로채지 않는 display-only 상태입니다. 일반 Windows 화면에서는 각 HUD 행의 작은 speaker 버튼으로 Master 또는 실행 중인 앱만 음소거/해제할 수 있고, 오른쪽 위 `×`를 누르면 MutePilot은 종료하지 않은 채 Overlay만 OFF로 바뀝니다. 대시보드 빠른 버튼, 실행 설정, tray menu와 HUD 닫기 버튼은 모두 같은 `overlayEnabled`를 사용해 상태를 함께 갱신합니다. 설정은 `%LocalAppData%\MutePilot\settings.json`에 저장됩니다.
 
+전체 HUD의 Master와 실행 중인 저장 앱 행에서는 0~100% 슬라이더로 현재 Windows 볼륨을 바로 조절할 수 있습니다. 이 조절은 현재 오디오 세션에만 반영되며 저장된 볼륨 프리셋, 프리셋 단축키, 적용 전 기본 상태는 바꾸지 않습니다. 음소거 중 슬라이더를 움직여도 음소거 상태는 유지되고, mini-HUD와 fullscreen display-only 상태에서는 슬라이더를 조작할 수 없습니다.
+
 일반 Windows 화면에서는 HUD 오른쪽 위의 뚜렷한 자물쇠 버튼으로 위치 설정 모드를 바꿀 수 있습니다. 잠금을 풀면 `MutePilot` 제목 부분을 끌어 위치를 옮기고 20~100% 범위의 투명도 slider를 조절할 수 있습니다. 다시 잠그면 위치 이동과 설정 panel만 막히며 audio·접기·닫기 버튼은 계속 사용할 수 있습니다. `−`를 누르면 Overlay는 OFF로 바뀌지 않고 176×46 크기의 mini-HUD로 접히며, 펼치기 버튼으로 같은 HUD를 다시 복원합니다. 접힘 상태는 현재 실행 중에만 유지됩니다. 위치, 잠금 상태, 투명도는 기존 설정 파일에 계속 저장됩니다.
 
 저장 위치가 현재 monitor 작업 영역 밖이면 가장 가까운 화면 안으로 되돌립니다. 메인 화면의 `오버레이 위치 초기화` 버튼으로 언제든 주 모니터 오른쪽 위 기본 위치로 복구할 수도 있습니다.
@@ -76,7 +78,7 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 
 관리자 재실행에서는 새 프로세스가 `--elevated-restart` handoff token으로 기존 Mutex가 풀리기를 기다립니다. UAC 승인이 끝나 새 프로세스 시작에 성공한 경우에만 기존 인스턴스를 정상 종료하므로, UAC를 취소하면 기존 MutePilot과 단일 실행 보호가 그대로 남습니다.
 
-개발 중 자동 시작을 켜면 현재 `bin/Debug` 또는 `bin/Release` 실행 파일 경로가 그대로 등록됩니다. 빌드 위치를 옮기거나 파일을 지우면 작업이 유효하지 않을 수 있으므로 OFF/ON으로 다시 등록해야 합니다. 최종 배포 단계에서는 고정된 설치 경로를 마련할 예정입니다.
+개발 중 자동 시작을 켜면 현재 `bin/Debug` 또는 `bin/Release` 실행 파일 경로가 그대로 등록됩니다. 빌드 위치를 옮기거나 파일을 지우면 작업이 유효하지 않을 수 있으므로 OFF/ON으로 다시 등록해야 합니다. 설치 파일로 배포한 경우에는 `{autopf}\MutePilot` 아래의 고정된 실행 파일을 사용합니다.
 
 일반 GUI와 권한 표시뿐 아니라 정상 UAC를 거친 관리자 권한 재시작도 실제 Windows에서 확인했습니다. `MutePilot Startup` 작업을 켠 뒤 Windows를 재부팅하고 다시 로그인했을 때 MutePilot이 관리자 권한의 background/tray 상태로 자동 시작됐습니다. 자동 시작된 상태에서도 SuddenAttack 음소거 단축키와 볼륨 프리셋 toggle, tray에 숨긴 상태의 단축키, HUD 갱신이 정상 동작했습니다.
 
@@ -126,7 +128,13 @@ Master Audio는 현재 기본 Windows playback endpoint의 scalar volume과 장�
 * `Made by 유성우`와 분리된 `후원하기` 버튼, Toss QR과 계좌번호 복사 — 구현 및 로컬 GUI 검증 완료
 * 실제 MutePilot 아이콘의 executable·MainWindow·taskbar·tray·Sidebar·About 연결 — 적용 및 로컬 GUI 검증 완료
 
-연속적인 볼륨 증가·감소 조절은 현재 범위에 포함하지 않습니다. 볼륨 기능은 저장한 프리셋과 적용 직전의 실제 상태를 오가는 방식만 제공합니다.
+단축키를 이용한 단계별 볼륨 증가·감소는 현재 범위에 포함하지 않습니다. 단축키 볼륨 기능은 저장한 프리셋과 적용 직전의 실제 상태를 오가며, 현재 볼륨 직접 조절은 전체 Overlay 슬라이더에서 제공합니다.
+
+## Windows 설치
+
+`MutePilot-Setup-v1.0.0.exe`는 64비트 Windows용 self-contained 설치 파일입니다. 기본 설치 위치는 `{autopf}\MutePilot`(보통 `C:\Program Files\MutePilot`)이며, Start Menu 바로가기와 선택형 바탕 화면 바로가기를 제공합니다. .NET 8 runtime이 포함되어 있어 사용자가 .NET을 별도로 설치할 필요가 없습니다.
+
+설치 과정은 `Windows 로그인 시 MutePilot 자동 실행`을 임의로 켜지 않습니다. 필요한 경우 설치 뒤 MutePilot의 `실행 설정`에서 사용자가 직접 ON으로 바꿔야 합니다. 제거할 때는 설치 파일과 바로가기, `MutePilot Startup` 예약 작업의 정리를 시도하지만 `%LocalAppData%\MutePilot\settings.json`은 재설치를 위해 남겨 둡니다.
 
 ## 사용 기술
 
@@ -167,6 +175,7 @@ Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능�
 15. 사이드바 대시보드와 다크·화이트·핑크 테마 — 완료
 16. Master·앱별 숫자 프리셋 입력과 slider 동기화 — 완료
 17. 최종 아이콘 자산 적용 — 완료, GitHub Release 배포 구조 정리
+18. Overlay 현재 볼륨 슬라이더와 Windows 설치 파일 — 구현 및 로컬 빌드 검증 완료
 
 ## 작성자
 

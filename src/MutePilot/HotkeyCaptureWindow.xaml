@@ -15,20 +15,20 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <StackPanel>
-            <TextBlock FontSize="19" FontWeight="SemiBold" Text="단축키를 눌러 주세요" />
+            <TextBlock FontSize="19" FontWeight="SemiBold" Text="원하는 단축키를 누르세요." />
             <TextBlock x:Name="CaptureContextText" Margin="0,6,0,0" FontSize="13"
                        FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"
                        TextWrapping="Wrap" />
             <TextBlock Margin="0,8,0,0" Foreground="{StaticResource SecondaryTextBrush}"
-                       Text="F1~F11 또는 Ctrl/Alt/Shift와 영문·숫자 키 조합을 사용할 수 있습니다."
+                       Text="누른 키 또는 modifier 조합을 그대로 단축키로 저장합니다."
                        TextWrapping="Wrap" />
             <TextBlock Margin="0,8,0,0" FontSize="11"
                        Foreground="{StaticResource SecondaryTextBrush}"
-                       Text="F키 단독 단축키는 실행 중인 게임에도 해당 키 입력이 함께 전달될 수 있습니다."
+                       Text="설정한 키는 다른 프로그램의 원래 입력도 그대로 동작합니다."
                        TextWrapping="Wrap" />
             <TextBlock Margin="0,4,0,0" FontSize="11"
                        Foreground="{StaticResource SecondaryTextBrush}"
-                       Text="다른 프로그램과 충돌하면 Ctrl/Alt/Shift 조합을 사용해 보세요."
+                       Text="Windows 또는 다른 프로그램에서 이미 사용하는 조합은 등록되지 않을 수 있습니다."
                        TextWrapping="Wrap" />
         </StackPanel>
         <Border Grid.Row="1" Margin="0,18" Padding="20" MinHeight="126"

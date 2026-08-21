@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows.Input;
 
@@ -9,25 +10,17 @@ public enum HotkeyModifiers
     None = 0,
     Alt = 1,
     Control = 2,
-    Shift = 4
+    Shift = 4,
+    Windows = 8
 }
 
-public sealed record HotkeyGesture
+[JsonConverter(typeof(HotkeyGestureJsonConverter))]
+public sealed record HotkeyGesture(HotkeyModifiers Modifiers, int VirtualKey)
 {
-    [JsonConstructor]
-    public HotkeyGesture(HotkeyModifiers modifiers, Key key)
-    {
-        Modifiers = modifiers;
-        Key = key;
-    }
-
-    public HotkeyModifiers Modifiers { get; init; }
-
-    public Key Key { get; init; }
+    private const int MaximumVirtualKey = 0xFF;
 
     [JsonIgnore]
-    public bool IsStandaloneFunctionKey =>
-        Modifiers == HotkeyModifiers.None && Key >= Key.F1 && Key <= Key.F11;
+    public bool IsStandalone => Modifiers == HotkeyModifiers.None;
 
     [JsonIgnore]
     public string DisplayText
@@ -36,63 +29,36 @@ public sealed record HotkeyGesture
         {
             var parts = new List<string>();
 
-            if (Modifiers.HasFlag(HotkeyModifiers.Control))
-            {
-                parts.Add("Ctrl");
-            }
+            if (Modifiers.HasFlag(HotkeyModifiers.Control)) parts.Add("Ctrl");
+            if (Modifiers.HasFlag(HotkeyModifiers.Alt)) parts.Add("Alt");
+            if (Modifiers.HasFlag(HotkeyModifiers.Shift)) parts.Add("Shift");
+            if (Modifiers.HasFlag(HotkeyModifiers.Windows)) parts.Add("Win");
 
-            if (Modifiers.HasFlag(HotkeyModifiers.Alt))
-            {
-                parts.Add("Alt");
-            }
-
-            if (Modifiers.HasFlag(HotkeyModifiers.Shift))
-            {
-                parts.Add("Shift");
-            }
-
-            parts.Add(FormatKey(Key));
+            parts.Add(FormatVirtualKey(VirtualKey));
             return string.Join(" + ", parts);
         }
     }
 
+    public static HotkeyGesture FromKey(HotkeyModifiers modifiers, Key key) =>
+        new(modifiers, KeyInterop.VirtualKeyFromKey(key));
+
     public bool TryValidate(out string errorMessage)
     {
         const HotkeyModifiers supportedModifiers =
-            HotkeyModifiers.Control | HotkeyModifiers.Alt | HotkeyModifiers.Shift;
+            HotkeyModifiers.Control |
+            HotkeyModifiers.Alt |
+            HotkeyModifiers.Shift |
+            HotkeyModifiers.Windows;
 
         if ((Modifiers & ~supportedModifiers) != 0)
         {
-            errorMessage = "Windows 키 조합은 지원하지 않습니다.";
+            errorMessage = "Windows에서 인식할 수 없는 modifier 조합입니다.";
             return false;
         }
 
-        if (Key == Key.None || IsModifierKey(Key))
+        if (!TryGetRepresentedKey(VirtualKey, out _) || IsModifierVirtualKey(VirtualKey))
         {
-            errorMessage = "Ctrl, Alt, Shift 외의 키를 함께 눌러 주세요.";
-            return false;
-        }
-
-        if (Key == Key.F12)
-        {
-            errorMessage = "F12는 Windows에서 예약할 수 있어 사용할 수 없습니다.";
-            return false;
-        }
-
-        var isFunctionKey = Key >= Key.F1 && Key <= Key.F11;
-        var isLetter = Key >= Key.A && Key <= Key.Z;
-        var isTopRowNumber = Key >= Key.D0 && Key <= Key.D9;
-        var isNumberPadKey = Key >= Key.NumPad0 && Key <= Key.NumPad9;
-
-        if (!isFunctionKey && !isLetter && !isTopRowNumber && !isNumberPadKey)
-        {
-            errorMessage = "F1~F11 또는 Ctrl/Alt/Shift와 조합한 영문·숫자 키를 사용해 주세요.";
-            return false;
-        }
-
-        if (!isFunctionKey && Modifiers == HotkeyModifiers.None)
-        {
-            errorMessage = "영문·숫자 키에는 Ctrl, Alt, Shift 중 하나 이상이 필요합니다.";
+            errorMessage = "이 키는 단독 단축키로 사용할 수 없습니다.";
             return false;
         }
 
@@ -102,14 +68,43 @@ public sealed record HotkeyGesture
 
     public static bool IsModifierKey(Key key)
     {
-        return key is Key.LeftCtrl or Key.RightCtrl or
-            Key.LeftAlt or Key.RightAlt or
-            Key.LeftShift or Key.RightShift or
-            Key.LWin or Key.RWin;
+        var virtualKey = KeyInterop.VirtualKeyFromKey(key);
+        return IsModifierVirtualKey(virtualKey);
     }
 
-    private static string FormatKey(Key key)
+    private static bool TryGetRepresentedKey(int virtualKey, out Key key)
     {
+        key = Key.None;
+
+        if (virtualKey <= 0 || virtualKey > MaximumVirtualKey)
+        {
+            return false;
+        }
+
+        key = KeyInterop.KeyFromVirtualKey(virtualKey);
+        return key != Key.None && KeyInterop.VirtualKeyFromKey(key) == virtualKey;
+    }
+
+    private static bool IsModifierVirtualKey(int virtualKey) => virtualKey is
+        0x10 or // VK_SHIFT
+        0x11 or // VK_CONTROL
+        0x12 or // VK_MENU
+        0x5B or // VK_LWIN
+        0x5C or // VK_RWIN
+        0xA0 or // VK_LSHIFT
+        0xA1 or // VK_RSHIFT
+        0xA2 or // VK_LCONTROL
+        0xA3 or // VK_RCONTROL
+        0xA4 or // VK_LMENU
+        0xA5;   // VK_RMENU
+
+    private static string FormatVirtualKey(int virtualKey)
+    {
+        if (!TryGetRepresentedKey(virtualKey, out var key))
+        {
+            return $"VK 0x{virtualKey:X2}";
+        }
+
         if (key >= Key.D0 && key <= Key.D9)
         {
             return key.ToString()[1..];
@@ -121,5 +116,61 @@ public sealed record HotkeyGesture
         }
 
         return key.ToString();
+    }
+}
+
+public sealed class HotkeyGestureJsonConverter : JsonConverter<HotkeyGesture>
+{
+    public override HotkeyGesture Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options)
+    {
+        using var document = JsonDocument.ParseValue(ref reader);
+        var root = document.RootElement;
+        var modifiers = ReadModifiers(root, options);
+        var virtualKey = root.TryGetProperty("virtualKey", out var virtualKeyElement) &&
+            virtualKeyElement.TryGetInt32(out var storedVirtualKey)
+                ? storedVirtualKey
+                : ReadLegacyVirtualKey(root, options);
+
+        return new HotkeyGesture(modifiers, virtualKey);
+    }
+
+    public override void Write(
+        Utf8JsonWriter writer,
+        HotkeyGesture value,
+        JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WritePropertyName("modifiers");
+        JsonSerializer.Serialize(writer, value.Modifiers, options);
+        writer.WriteNumber("virtualKey", value.VirtualKey);
+        writer.WriteEndObject();
+    }
+
+    private static HotkeyModifiers ReadModifiers(
+        JsonElement root,
+        JsonSerializerOptions options)
+    {
+        if (!root.TryGetProperty("modifiers", out var element))
+        {
+            return HotkeyModifiers.None;
+        }
+
+        return JsonSerializer.Deserialize<HotkeyModifiers>(element.GetRawText(), options);
+    }
+
+    private static int ReadLegacyVirtualKey(
+        JsonElement root,
+        JsonSerializerOptions options)
+    {
+        if (!root.TryGetProperty("key", out var element))
+        {
+            return 0;
+        }
+
+        var key = JsonSerializer.Deserialize<Key>(element.GetRawText(), options);
+        return KeyInterop.VirtualKeyFromKey(key);
     }
 }

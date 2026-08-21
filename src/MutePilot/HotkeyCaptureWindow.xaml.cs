@@ -25,28 +25,16 @@ public partial class HotkeyCaptureWindow : Window
     {
         e.Handled = true;
 
-        if (e.Key == Key.Escape)
-        {
-            DialogResult = false;
-            return;
-        }
-
-        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        var key = GetActualKey(e);
         var modifiers = Keyboard.Modifiers;
-
-        if ((modifiers & ModifierKeys.Windows) != 0 || key is Key.LWin or Key.RWin)
-        {
-            RejectInput("Windows 키 조합은 지원하지 않습니다.");
-            return;
-        }
 
         if (HotkeyGesture.IsModifierKey(key))
         {
-            RejectInput("Ctrl, Alt, Shift 외의 키를 함께 눌러 주세요.");
+            RejectInput("이 키는 단독 단축키로 사용할 수 없습니다.");
             return;
         }
 
-        var gesture = new HotkeyGesture(ToHotkeyModifiers(modifiers), key);
+        var gesture = HotkeyGesture.FromKey(ToHotkeyModifiers(modifiers), key);
 
         if (!gesture.TryValidate(out var errorMessage))
         {
@@ -88,7 +76,16 @@ public partial class HotkeyCaptureWindow : Window
         if (modifiers.HasFlag(ModifierKeys.Control)) result |= HotkeyModifiers.Control;
         if (modifiers.HasFlag(ModifierKeys.Alt)) result |= HotkeyModifiers.Alt;
         if (modifiers.HasFlag(ModifierKeys.Shift)) result |= HotkeyModifiers.Shift;
+        if (modifiers.HasFlag(ModifierKeys.Windows)) result |= HotkeyModifiers.Windows;
 
         return result;
     }
+
+    private static Key GetActualKey(KeyEventArgs e) => e.Key switch
+    {
+        Key.System => e.SystemKey,
+        Key.ImeProcessed => e.ImeProcessedKey,
+        Key.DeadCharProcessed => e.DeadCharProcessedKey,
+        _ => e.Key
+    };
 }

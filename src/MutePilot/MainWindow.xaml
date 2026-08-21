@@ -120,7 +120,7 @@
                             <TextBlock FontSize="17" FontWeight="SemiBold" Text="실행 설정" />
                             <TextBlock Margin="0,7,0,0" FontSize="12"
                                        Foreground="{StaticResource SecondaryTextBrush}"
-                                       Text="관리자 권한으로 실행되는 게임에서 단독 F키를 사용하려면 MutePilot도 관리자 권한이 필요할 수 있습니다."
+                                       Text="관리자 권한으로 실행되는 프로그램에서 사용자 지정 단독 키를 사용하려면 MutePilot도 관리자 권한이 필요할 수 있습니다."
                                        TextWrapping="Wrap" />
                             <TextBlock x:Name="StartupDetailText" Margin="0,6,0,0" FontSize="11"
                                        Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />

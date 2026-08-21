@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Windows.Input;
 using System.Windows.Interop;
 
 namespace MutePilot.Hotkeys;
@@ -14,6 +13,7 @@ public sealed class HotkeyService : IHotkeyService
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
     private const uint ModShift = 0x0004;
+    private const uint ModWindows = 0x0008;
     private const uint ModNoRepeat = 0x4000;
     private const int FirstHotkeyId = 0x4000;
 
@@ -67,7 +67,7 @@ public sealed class HotkeyService : IHotkeyService
         {
             Debug.WriteLine(exception);
             InitializationWarning =
-                "단독 F1~F11 감시를 시작하지 못했습니다. modifier 조합은 계속 사용할 수 있습니다.";
+                "사용자 지정 단독 키 감시를 시작하지 못했습니다. modifier 조합은 계속 사용할 수 있습니다.";
         }
     }
 
@@ -110,7 +110,7 @@ public sealed class HotkeyService : IHotkeyService
                 return true;
             }
 
-            if (binding.Gesture.IsStandaloneFunctionKey)
+            if (binding.Gesture.IsStandalone)
             {
                 return TryRegisterStandaloneBinding(
                     binding,
@@ -208,7 +208,7 @@ public sealed class HotkeyService : IHotkeyService
     {
         if (!IsStandalonePollingAvailable)
         {
-            errorMessage = "단독 F키 감시를 사용할 수 없어 단축키를 등록하지 못했습니다.";
+            errorMessage = "사용자 지정 단독 키 감시를 사용할 수 없어 단축키를 등록하지 못했습니다.";
             return false;
         }
 
@@ -225,7 +225,7 @@ public sealed class HotkeyService : IHotkeyService
             RemoveRegistrationMaps(previousRegistration);
         }
 
-        var virtualKey = KeyInterop.VirtualKeyFromKey(binding.Gesture.Key);
+        var virtualKey = binding.Gesture.VirtualKey;
         var registration = new HotkeyRegistration(null, binding);
         _registrationsByBinding[binding.BindingId] = registration;
         _standaloneRegistrationsByVirtualKey[virtualKey] = registration;
@@ -249,14 +249,14 @@ public sealed class HotkeyService : IHotkeyService
         out string errorMessage)
     {
         var newId = _nextHotkeyId++;
-        var virtualKey = unchecked((uint)KeyInterop.VirtualKeyFromKey(binding.Gesture.Key));
+        var virtualKey = unchecked((uint)binding.Gesture.VirtualKey);
         var nativeModifiers = ToNativeModifiers(binding.Gesture.Modifiers) | ModNoRepeat;
 
         if (!RegisterHotKey(_windowHandle, newId, nativeModifiers, virtualKey))
         {
             Debug.WriteLine(new Win32Exception(Marshal.GetLastWin32Error()));
             errorMessage =
-                "Windows에서 단축키를 등록하지 못했습니다. 다른 프로그램에서 사용 중일 수 있습니다.";
+                "이 단축키는 Windows 또는 다른 프로그램에서 사용 중이라 등록할 수 없습니다.";
             return false;
         }
 
@@ -294,7 +294,7 @@ public sealed class HotkeyService : IHotkeyService
         }
         else
         {
-            var virtualKey = KeyInterop.VirtualKeyFromKey(binding.Gesture.Key);
+            var virtualKey = binding.Gesture.VirtualKey;
             _standaloneRegistrationsByVirtualKey[virtualKey] = updatedRegistration;
         }
     }
@@ -309,7 +309,7 @@ public sealed class HotkeyService : IHotkeyService
             return;
         }
 
-        var virtualKey = KeyInterop.VirtualKeyFromKey(registration.Binding.Gesture.Key);
+        var virtualKey = registration.Binding.Gesture.VirtualKey;
         _standaloneRegistrationsByVirtualKey.Remove(virtualKey);
         _pressedStandaloneKeys.Remove(virtualKey);
     }
@@ -437,6 +437,7 @@ public sealed class HotkeyService : IHotkeyService
         if (modifiers.HasFlag(HotkeyModifiers.Alt)) nativeModifiers |= ModAlt;
         if (modifiers.HasFlag(HotkeyModifiers.Control)) nativeModifiers |= ModControl;
         if (modifiers.HasFlag(HotkeyModifiers.Shift)) nativeModifiers |= ModShift;
+        if (modifiers.HasFlag(HotkeyModifiers.Windows)) nativeModifiers |= ModWindows;
 
         return nativeModifiers;
     }

@@ -26,5 +26,9 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * MutePilot 내부 중복과 Windows 단축키 등록 충돌을 확인하고 기존 바인딩을 보존하는 변경 처리 추가
 * 앱이 실행 중이 아니어도 `ProcessName` 기준 바인딩을 유지하고 목록에서 변경·삭제할 수 있도록 구성
 * `%LocalAppData%\MutePilot\settings.json`에 단축키를 저장하고 시작할 때 개별적으로 복원하는 기능 추가
+* fullscreen 프로그램이 foreground인 동안 단독 F1~F11을 받을 수 있도록 `RIDEV_INPUTSINK` Raw Input 경로 추가
+* 단독 F키는 Raw Input만 사용하고 modifier 조합은 기존 `RegisterHotKey`를 사용하도록 분리해 이중 토글 방지
+* Raw Input의 key-down/key-up 상태를 구분해 키를 누르고 있을 때 반복 토글되지 않도록 처리
+* 단축키 입력 창의 표시 영역 높이와 padding을 늘려 단축키 문자열이 잘리던 문제 수정
 
-마스터 음소거와 앱별 음소거 기능은 실제 Windows PC에서 수동 검증까지 완료했습니다. 전역 단축키의 빌드와 화면, 초기화는 확인했지만 실제 게임·브라우저 포커스 상태의 동작은 아직 수동 검증하지 않았습니다.
+마스터 음소거와 앱별 음소거 기능은 실제 Windows PC에서 수동 검증까지 완료했습니다. modifier 전역 단축키도 Whale과 SuddenAttack에서 확인했습니다. Raw Input으로 개선한 단독 F8의 SuddenAttack foreground 동작은 아직 수동 검증하지 않았습니다.

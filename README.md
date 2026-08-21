@@ -22,16 +22,18 @@ MutePilot은 사용자가 지정한 전역 단축키로 Windows의 마스터 오
 
 Windows 마스터 오디오와 각 애플리케이션에 사용자 지정 전역 단축키를 설정·변경·삭제할 수 있습니다. 앱별 설정은 PID가 아니라 `ProcessName`으로 저장되므로 앱이 종료된 상태에서도 바인딩이 유지되고, 다시 실행되어 오디오 세션이 생기면 같은 설정을 사용할 수 있습니다. 설정은 `%LocalAppData%\MutePilot\settings.json`에 저장되며 MutePilot을 다시 실행할 때 복원됩니다.
 
-전역 단축키는 MutePilot이 실행 중일 때만 동작합니다. 빌드, 화면 실행, 캡처 창, 기본 설정 파일 생성과 재로드까지 확인했으며 실제 게임이나 브라우저에 포커스가 있는 상태의 음소거 전환은 아직 수동 검증이 필요합니다.
+전역 단축키는 MutePilot이 실행 중일 때만 동작합니다. Whale 전역 단축키와 SuddenAttack foreground의 `Ctrl + Alt + F8`은 수동 검증했으며, 새 Raw Input 경로로 바꾼 단독 F키는 다시 수동 검증해야 합니다.
 
-**사용자 지정 전역 단축키: 구현 완료 / 실제 동작 수동 검증 전**
+Ctrl/Alt/Shift가 포함된 조합은 Windows `RegisterHotKey`를 사용합니다. F1~F11 단독 단축키는 fullscreen 프로그램에 포커스가 있을 때도 입력을 받을 수 있도록 Raw Input의 `RIDEV_INPUTSINK` 경로를 사용하며, foreground 프로그램에도 같은 F키 입력은 그대로 전달됩니다. 게임 자체 단축키와 충돌한다면 modifier 조합을 사용하는 편이 안전합니다. 이 개선 이후 SuddenAttack 안에서 단독 F8이 동작하는지는 아직 수동 검증 전입니다.
+
+**사용자 지정 전역 단축키: 구현 완료 / modifier 조합 검증 완료 / 단독 F키 재검증 전**
 
 ## 앞으로 구현할 기능
 
 * Windows 마스터 음소거/음소거 해제 — 구현 및 실제 동작 수동 검증 완료
 * 활성 Windows 오디오 세션을 사용하는 애플리케이션 감지 — 구현 및 실제 세션 조회 확인 완료
 * 애플리케이션별 음소거/음소거 해제 — 구현 및 실제 동작 수동 검증 완료
-* 사용자 지정 전역 단축키와 토글 동작 — 구현 완료, 실제 동작 수동 검증 전
+* 사용자 지정 전역 단축키와 토글 동작 — 구현 완료, modifier 조합 검증 완료, 단독 F키 재검증 전
 * 여러 애플리케이션 단축키 바인딩 저장 — 구현 완료
 * 프로그램을 다시 실행해도 유지되는 로컬 설정 — 구현 완료, 기본 설정 생성·재로드 확인
 
@@ -45,6 +47,7 @@ Windows 마스터 오디오와 각 애플리케이션에 사용자 지정 전역
 * Windows Core Audio APIs
 * NAudio.Wasapi 2.3.0
 * Windows `RegisterHotKey`, `UnregisterHotKey`, `WM_HOTKEY`
+* Windows Raw Input (`RegisterRawInputDevices`, `WM_INPUT`)
 * `%LocalAppData%`의 JSON 설정 저장
 
 Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능부터 단순하게 구현할 계획입니다.

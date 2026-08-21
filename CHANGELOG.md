@@ -20,5 +20,6 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * `ProcessName` 기준으로 같은 애플리케이션의 여러 session을 묶고 PID, session 수, mute 상태를 표시
 * 애플리케이션 그룹의 session만 음소거하거나 해제하는 토글 기능 구현
 * `Applications` 목록과 수동 `새로고침` 버튼 추가
+* 실제 Windows PC에서 `suddenattack`과 Whale의 개별 음소거·해제, 앱 간 독립 제어, master audio 유지 동작을 수동 검증
 
-마스터 음소거 기능은 실제 Windows PC에서 수동 검증까지 완료했습니다. 앱별 session 조회는 실제 PC에서 확인했고, 앱별 음소거 전환은 수동 검증이 필요합니다. 전역 단축키는 아직 구현하지 않았습니다.
+마스터 음소거와 앱별 음소거 기능은 실제 Windows PC에서 수동 검증까지 완료했습니다. 전역 단축키는 아직 구현하지 않았습니다.

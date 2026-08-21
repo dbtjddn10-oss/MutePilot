@@ -11,6 +11,7 @@ using MutePilot.Security;
 using MutePilot.Settings;
 using MutePilot.Startup;
 using MutePilot.Tray;
+using MutePilot.Volume;
 
 namespace MutePilot;
 
@@ -19,6 +20,7 @@ public partial class MainWindow : Window
     private static readonly TimeSpan OverlayRefreshInterval = TimeSpan.FromSeconds(2);
 
     private readonly IAudioService _audioService = new AudioService();
+    private readonly IVolumePresetToggleService _volumePresetToggleService;
     private readonly IHotkeyService _hotkeyService = new HotkeyService();
     private readonly ISettingsService _settingsService = new SettingsService();
     private readonly IStartupService _startupService = new StartupService();
@@ -45,6 +47,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _volumePresetToggleService = new VolumePresetToggleService(_audioService);
         _overlayService = new OverlayService(Dispatcher);
         _overlayService.ConfigurationChanged += OverlayService_ConfigurationChanged;
         _trayService = new TrayService();
@@ -139,6 +142,7 @@ public partial class MainWindow : Window
         _overlayRefreshTimer.Tick -= OverlayRefreshTimer_Tick;
         _hotkeyService.HotkeyPressed -= HotkeyService_HotkeyPressed;
         _hotkeyService.Dispose();
+        _volumePresetToggleService.Clear();
         _overlayService.ConfigurationChanged -= OverlayService_ConfigurationChanged;
         _overlayService.Dispose();
         _trayService.OpenRequested -= TrayService_OpenRequested;
@@ -220,7 +224,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _audioService.SetMasterVolumePercent(_settings.MasterVolumePercent);
+            _volumePresetToggleService.ToggleMaster(_settings.MasterVolumePercent);
             RefreshMasterAudioState();
         }
         catch (Exception exception)
@@ -467,6 +471,19 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (slider.Parent is Grid grid)
+        {
+            var toggleButton = grid.Children.OfType<Button>().FirstOrDefault();
+
+            if (toggleButton is not null)
+            {
+                toggleButton.Content = _volumePresetToggleService
+                    .IsApplicationPresetActive(processName)
+                        ? "기본 볼륨으로 복원"
+                        : $"{Math.Clamp((int)Math.Round(e.NewValue), 1, 100)}%로 전환";
+            }
+        }
+
         SaveApplicationVolumePreset(processName, (int)Math.Round(e.NewValue));
     }
 
@@ -485,7 +502,9 @@ public partial class MainWindow : Window
 
         try
         {
-            _audioService.SetApplicationVolumePercent(processName, setting.VolumePercent);
+            _volumePresetToggleService.ToggleApplication(
+                processName,
+                setting.VolumePercent);
             RefreshApplicationSessions();
         }
         catch (Exception exception)
@@ -645,7 +664,7 @@ public partial class MainWindow : Window
             }
             else if (e.Binding.TargetType == HotkeyTargetType.MasterAudio)
             {
-                _audioService.SetMasterVolumePercent(_settings.MasterVolumePercent);
+                _volumePresetToggleService.ToggleMaster(_settings.MasterVolumePercent);
                 RefreshMasterAudioState();
             }
             else if (!string.IsNullOrWhiteSpace(e.Binding.ProcessName) &&
@@ -658,7 +677,7 @@ public partial class MainWindow : Window
             {
                 var setting = FindApplicationSetting(e.Binding.ProcessName) ??
                     throw new InvalidOperationException("저장된 앱 볼륨 프리셋을 찾을 수 없습니다.");
-                _audioService.SetApplicationVolumePercent(
+                _volumePresetToggleService.ToggleApplication(
                     e.Binding.ProcessName,
                     setting.VolumePercent);
                 RefreshApplicationSessions();
@@ -681,9 +700,10 @@ public partial class MainWindow : Window
     {
         try
         {
-            UpdateMasterAudioState(
-                _audioService.GetMasterMuteState(),
-                _audioService.GetMasterVolumePercent());
+            var snapshot = _audioService.CaptureMasterVolumeSnapshot();
+            _volumePresetToggleService.InvalidateStaleMasterBaseline(snapshot.DeviceId);
+            UpdateMasterAudioState(snapshot.IsMuted, snapshot.VolumePercent);
+            UpdateMasterVolumeSettingDisplay();
         }
         catch (Exception exception)
         {
@@ -706,6 +726,7 @@ public partial class MainWindow : Window
         {
             var activeSessions = _audioService.GetActiveApplicationSessions();
             _activeApplicationSessions = activeSessions;
+            _volumePresetToggleService.InvalidateStaleApplicationBaselines(activeSessions);
             _audioStateRevision++;
             var activeNames = new HashSet<string>(
                 activeSessions.Select(session => session.ApplicationKey),
@@ -762,10 +783,13 @@ public partial class MainWindow : Window
             setting?.VolumeHotkey is null ? "설정" : "변경",
             setting?.VolumeHotkey is null ? Visibility.Collapsed : Visibility.Visible,
             setting?.VolumePercent ?? AppSettings.DefaultVolumePercent,
+            _volumePresetToggleService.IsApplicationPresetActive(session.ApplicationKey)
+                ? "기본 볼륨으로 복원"
+                : $"{setting?.VolumePercent ?? AppSettings.DefaultVolumePercent}%로 전환",
             true);
     }
 
-    private static ApplicationSessionItem CreateInactiveApplicationItem(ApplicationHotkeySetting setting) =>
+    private ApplicationSessionItem CreateInactiveApplicationItem(ApplicationHotkeySetting setting) =>
         new(
             setting.ProcessName,
             setting.ProcessName,
@@ -780,6 +804,7 @@ public partial class MainWindow : Window
             setting.VolumeHotkey is null ? "설정" : "변경",
             setting.VolumeHotkey is null ? Visibility.Collapsed : Visibility.Visible,
             setting.VolumePercent,
+            $"{setting.VolumePercent}%로 전환",
             false);
 
     private IEnumerable<HotkeyBinding> GetConfiguredBindings()
@@ -941,7 +966,9 @@ public partial class MainWindow : Window
     {
         var normalizedPercent = Math.Clamp(percent, 1, 100);
         MasterVolumePresetText.Text = $"{normalizedPercent}%";
-        MasterVolumeApplyButton.Content = $"{normalizedPercent}% 적용";
+        MasterVolumeApplyButton.Content = _volumePresetToggleService.IsMasterPresetActive
+            ? "기본 볼륨으로 복원"
+            : $"{normalizedPercent}%로 전환";
 
         if (_settings.MasterVolumePercent == normalizedPercent)
         {
@@ -1136,7 +1163,9 @@ public partial class MainWindow : Window
         var percent = Math.Clamp(_settings.MasterVolumePercent, 1, 100);
         MasterVolumeSlider.Value = percent;
         MasterVolumePresetText.Text = $"{percent}%";
-        MasterVolumeApplyButton.Content = $"{percent}% 적용";
+        MasterVolumeApplyButton.Content = _volumePresetToggleService.IsMasterPresetActive
+            ? "기본 볼륨으로 복원"
+            : $"{percent}%로 전환";
     }
 
     private void UpdateMasterAudioState(bool isMuted, int? volumePercent = null)
@@ -1161,7 +1190,7 @@ public partial class MainWindow : Window
 
     private async Task RefreshOverlayAudioStateAsync()
     {
-        if (_isClosed || !_settings.OverlayEnabled || _isOverlayRefreshRunning)
+        if (_isClosed || _isOverlayRefreshRunning)
         {
             return;
         }
@@ -1172,19 +1201,36 @@ public partial class MainWindow : Window
         try
         {
             var snapshot = await Task.Run(() => new OverlayAudioSnapshot(
-                _audioService.GetMasterMuteState(),
-                _audioService.GetMasterVolumePercent(),
+                _audioService.CaptureMasterVolumeSnapshot(),
                 _audioService.GetActiveApplicationSessions()));
 
-            if (_isClosed || !_settings.OverlayEnabled || revisionAtStart != _audioStateRevision)
+            if (_isClosed || revisionAtStart != _audioStateRevision)
             {
                 return;
             }
 
-            _masterIsMuted = snapshot.MasterIsMuted;
-            _masterVolumePercent = snapshot.MasterVolumePercent;
+            var masterBaselineInvalidated =
+                _volumePresetToggleService.InvalidateStaleMasterBaseline(
+                    snapshot.MasterSnapshot.DeviceId);
+            var applicationBaselineInvalidated =
+                _volumePresetToggleService.InvalidateStaleApplicationBaselines(
+                    snapshot.ApplicationSessions);
+            _masterIsMuted = snapshot.MasterSnapshot.IsMuted;
+            _masterVolumePercent = snapshot.MasterSnapshot.VolumePercent;
             _activeApplicationSessions = snapshot.ApplicationSessions;
             _audioStateRevision++;
+
+            if (masterBaselineInvalidated)
+            {
+                UpdateMasterVolumeSettingDisplay();
+            }
+
+            if (applicationBaselineInvalidated)
+            {
+                RefreshApplicationSessions();
+                return;
+            }
+
             RefreshOverlayHud();
         }
         catch (Exception exception)
@@ -1301,10 +1347,10 @@ public partial class MainWindow : Window
         string VolumeHotkeyButtonText,
         Visibility VolumeRemoveButtonVisibility,
         int VolumePercent,
+        string VolumeToggleButtonText,
         bool IsRunning);
 
     private sealed record OverlayAudioSnapshot(
-        bool MasterIsMuted,
-        int MasterVolumePercent,
+        MasterVolumeSnapshot MasterSnapshot,
         IReadOnlyList<ApplicationAudioSession> ApplicationSessions);
 }

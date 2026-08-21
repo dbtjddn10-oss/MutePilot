@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using MutePilot.Volume;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 
@@ -6,12 +7,9 @@ namespace MutePilot.Audio;
 
 public sealed class AudioService : IAudioService
 {
-    public bool GetMasterMuteState()
-    {
-        return UseDefaultOutputDevice(
-            device => device.AudioEndpointVolume.Mute,
-            "음소거 상태 확인");
-    }
+    private const float ScalarComparisonTolerance = 0.001f;
+
+    public bool GetMasterMuteState() => CaptureMasterVolumeSnapshot().IsMuted;
 
     public void SetMasterMuteState(bool isMuted)
     {
@@ -28,47 +26,113 @@ public sealed class AudioService : IAudioService
     {
         var nextState = !GetMasterMuteState();
         SetMasterMuteState(nextState);
-
         return GetMasterMuteState();
     }
 
-    public int GetMasterVolumePercent()
-    {
-        return UseDefaultOutputDevice(
-            device => ToVolumePercent(device.AudioEndpointVolume.MasterVolumeLevelScalar),
-            "볼륨 확인");
-    }
+    public int GetMasterVolumePercent() => CaptureMasterVolumeSnapshot().VolumePercent;
 
     public int SetMasterVolumePercent(int percent)
     {
+        var current = CaptureMasterVolumeSnapshot();
+        return ApplyMasterVolumePreset(current, percent).VolumePercent;
+    }
+
+    public MasterVolumeSnapshot ApplyMasterVolumePreset(
+        MasterVolumeSnapshot snapshot,
+        int percent)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
         var normalizedPercent = NormalizeVolumePercent(percent);
 
-        UseDefaultOutputDevice(
+        return UseDefaultOutputDevice(
             device =>
             {
+                if (!string.Equals(device.ID, snapshot.DeviceId, StringComparison.Ordinal))
+                {
+                    throw new AudioServiceException(
+                        "기본 출력 장치가 바뀌어 Master Audio 프리셋을 적용하지 않았습니다.",
+                        new InvalidOperationException("The default output device changed."));
+                }
+
                 device.AudioEndpointVolume.MasterVolumeLevelScalar = normalizedPercent / 100f;
                 device.AudioEndpointVolume.Mute = false;
-                return true;
+
+                var applied = new MasterVolumeSnapshot(
+                    device.ID,
+                    device.AudioEndpointVolume.MasterVolumeLevelScalar,
+                    device.AudioEndpointVolume.Mute);
+
+                if (applied.IsMuted ||
+                    Math.Abs(applied.VolumeScalar - normalizedPercent / 100f) >
+                    ScalarComparisonTolerance)
+                {
+                    throw new AudioServiceException(
+                        "Master Audio 프리셋 적용 결과가 요청한 값과 다릅니다.",
+                        new InvalidOperationException("The applied master state differs from the preset."));
+                }
+
+                return applied;
             },
             $"볼륨을 {normalizedPercent}%로 설정");
+    }
 
-        return GetMasterVolumePercent();
+    public MasterVolumeSnapshot CaptureMasterVolumeSnapshot()
+    {
+        return UseDefaultOutputDevice(
+            device => new MasterVolumeSnapshot(
+                device.ID,
+                device.AudioEndpointVolume.MasterVolumeLevelScalar,
+                device.AudioEndpointVolume.Mute),
+            "현재 소리 상태 확인");
+    }
+
+    public MasterVolumeSnapshot RestoreMasterVolumeSnapshot(MasterVolumeSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        return UseDefaultOutputDevice(
+            device =>
+            {
+                if (!string.Equals(device.ID, snapshot.DeviceId, StringComparison.Ordinal))
+                {
+                    throw new AudioServiceException(
+                        "기본 출력 장치가 바뀌어 이전 Master Audio 상태를 복원하지 않았습니다.",
+                        new InvalidOperationException("The default output device changed."));
+                }
+
+                device.AudioEndpointVolume.MasterVolumeLevelScalar =
+                    Math.Clamp(snapshot.VolumeScalar, 0f, 1f);
+                device.AudioEndpointVolume.Mute = snapshot.IsMuted;
+
+                var restored = new MasterVolumeSnapshot(
+                    device.ID,
+                    device.AudioEndpointVolume.MasterVolumeLevelScalar,
+                    device.AudioEndpointVolume.Mute);
+
+                if (restored.IsMuted != snapshot.IsMuted ||
+                    Math.Abs(restored.VolumeScalar - snapshot.VolumeScalar) >
+                    ScalarComparisonTolerance)
+                {
+                    throw new AudioServiceException(
+                        "Master Audio의 기본 소리 상태를 완전히 복원하지 못했습니다.",
+                        new InvalidOperationException("The restored master state differs from the baseline."));
+                }
+
+                return restored;
+            },
+            "기본 소리 상태 복원");
     }
 
     public IReadOnlyList<ApplicationAudioSession> GetActiveApplicationSessions()
     {
         return UseDefaultOutputDevice(
-            ReadActiveApplicationSessions,
+            device => AggregateApplicationSessions(ReadApplicationSessionSnapshots(device)),
             "앱별 오디오 세션 조회");
     }
 
     public ApplicationAudioSession ToggleApplicationMute(string applicationKey)
     {
-        if (string.IsNullOrWhiteSpace(applicationKey))
-        {
-            throw new ArgumentException("Application key is required.", nameof(applicationKey));
-        }
-
+        ArgumentException.ThrowIfNullOrWhiteSpace(applicationKey);
         var currentSession = FindApplicationSession(applicationKey);
         var nextMuteState = !currentSession.IsMuted;
 
@@ -87,23 +151,40 @@ public sealed class AudioService : IAudioService
         string applicationKey,
         int percent)
     {
-        if (string.IsNullOrWhiteSpace(applicationKey))
-        {
-            throw new ArgumentException("Application key is required.", nameof(applicationKey));
-        }
+        var snapshot = CaptureApplicationVolumeSnapshot(applicationKey);
+        return ApplyApplicationVolumePreset(snapshot, percent);
+    }
 
+    public ApplicationVolumeSnapshot CaptureApplicationVolumeSnapshot(string applicationKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(applicationKey);
+        return UseDefaultOutputDevice(
+            device => CaptureApplicationVolumeSnapshot(device, applicationKey),
+            $"{applicationKey}의 현재 소리 상태 확인");
+    }
+
+    public ApplicationAudioSession ApplyApplicationVolumePreset(
+        ApplicationVolumeSnapshot snapshot,
+        int percent)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
         var normalizedPercent = NormalizeVolumePercent(percent);
-        var currentSession = FindApplicationSession(applicationKey);
 
-        UseDefaultOutputDevice(
-            device =>
-            {
-                SetApplicationVolume(device, applicationKey, normalizedPercent);
-                return true;
-            },
-            $"{currentSession.ApplicationName} 볼륨을 {normalizedPercent}%로 설정");
+        return UseDefaultOutputDevice(
+            device => ChangeApplicationSessionStates(
+                device,
+                snapshot,
+                normalizedPercent),
+            $"{snapshot.ApplicationKey} 볼륨을 {normalizedPercent}%로 전환");
+    }
 
-        return FindApplicationSession(applicationKey);
+    public ApplicationAudioSession RestoreApplicationVolumeSnapshot(
+        ApplicationVolumeSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        return UseDefaultOutputDevice(
+            device => ChangeApplicationSessionStates(device, snapshot, null),
+            $"{snapshot.ApplicationKey} 기본 소리 상태 복원");
     }
 
     private ApplicationAudioSession FindApplicationSession(string applicationKey)
@@ -119,7 +200,67 @@ public sealed class AudioService : IAudioService
             new InvalidOperationException($"Audio session group '{applicationKey}' is unavailable."));
     }
 
-    private static IReadOnlyList<ApplicationAudioSession> ReadActiveApplicationSessions(
+    private static ApplicationVolumeSnapshot CaptureApplicationVolumeSnapshot(
+        MMDevice device,
+        string applicationKey)
+    {
+        var sessions = ReadApplicationSessionSnapshots(device)
+            .Where(session => string.Equals(
+                session.ProcessName,
+                applicationKey,
+                StringComparison.OrdinalIgnoreCase))
+            .Select(session => new ApplicationSessionVolumeSnapshot(
+                session.SessionInstanceId,
+                session.ProcessId,
+                session.VolumeScalar,
+                session.IsMuted))
+            .OrderBy(session => session.SessionInstanceId, StringComparer.Ordinal)
+            .ToArray();
+
+        if (sessions.Length == 0)
+        {
+            throw new AudioServiceException(
+                "대상 애플리케이션의 활성 오디오 세션을 찾을 수 없습니다.",
+                new InvalidOperationException($"Audio session group '{applicationKey}' is unavailable."));
+        }
+
+        return new ApplicationVolumeSnapshot(applicationKey, sessions);
+    }
+
+    private static IReadOnlyList<ApplicationAudioSession> AggregateApplicationSessions(
+        IReadOnlyList<ApplicationSessionSnapshot> snapshots)
+    {
+        return snapshots
+            .GroupBy(snapshot => snapshot.ProcessName, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var muteStates = group.Select(snapshot => snapshot.IsMuted).ToArray();
+                var volumeLevels = group.Select(snapshot => snapshot.VolumePercent).ToArray();
+                var processIds = group.Select(snapshot => snapshot.ProcessId)
+                    .Distinct()
+                    .OrderBy(processId => processId)
+                    .ToArray();
+                var sessionIds = group.Select(snapshot => snapshot.SessionInstanceId)
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(sessionId => sessionId, StringComparer.Ordinal)
+                    .ToArray();
+
+                return new ApplicationAudioSession(
+                    group.Key,
+                    group.Key,
+                    processIds,
+                    sessionIds,
+                    muteStates.All(isMuted => isMuted),
+                    muteStates.Any(isMuted => isMuted) && muteStates.Any(isMuted => !isMuted),
+                    (int)Math.Round(volumeLevels.Average(), MidpointRounding.AwayFromZero),
+                    volumeLevels.Distinct().Skip(1).Any(),
+                    muteStates.Length);
+            })
+            .OrderBy(session => session.ApplicationName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<ApplicationSessionSnapshot> ReadApplicationSessionSnapshots(
         MMDevice device)
     {
         var snapshots = new List<ApplicationSessionSnapshot>();
@@ -143,8 +284,9 @@ public sealed class AudioService : IAudioService
                 snapshots.Add(new ApplicationSessionSnapshot(
                     identity.ProcessName,
                     identity.ProcessId,
+                    identity.SessionInstanceId,
                     session.SimpleAudioVolume.Mute,
-                    ToVolumePercent(session.SimpleAudioVolume.Volume)));
+                    session.SimpleAudioVolume.Volume));
             }
             catch (Exception exception)
             {
@@ -152,30 +294,7 @@ public sealed class AudioService : IAudioService
             }
         }
 
-        return snapshots
-            .GroupBy(snapshot => snapshot.ProcessName, StringComparer.OrdinalIgnoreCase)
-            .Select(group =>
-            {
-                var muteStates = group.Select(snapshot => snapshot.IsMuted).ToArray();
-                var volumeLevels = group.Select(snapshot => snapshot.VolumePercent).ToArray();
-                var processIds = group
-                    .Select(snapshot => snapshot.ProcessId)
-                    .Distinct()
-                    .OrderBy(processId => processId)
-                    .ToArray();
-
-                return new ApplicationAudioSession(
-                    group.Key,
-                    group.Key,
-                    processIds,
-                    muteStates.All(isMuted => isMuted),
-                    muteStates.Any(isMuted => isMuted) && muteStates.Any(isMuted => !isMuted),
-                    (int)Math.Round(volumeLevels.Average(), MidpointRounding.AwayFromZero),
-                    volumeLevels.Distinct().Skip(1).Any(),
-                    muteStates.Length);
-            })
-            .OrderBy(session => session.ApplicationName, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        return snapshots;
     }
 
     private static void SetApplicationMute(
@@ -225,43 +344,43 @@ public sealed class AudioService : IAudioService
             }
         }
 
-        if (matchedSessionCount == 0)
-        {
-            throw new AudioServiceException(
-                "대상 애플리케이션의 활성 오디오 세션이 사라졌습니다.",
-                new InvalidOperationException($"Audio session group '{applicationKey}' disappeared."));
-        }
-
-        if (updatedSessionCount == 0)
-        {
-            throw new AudioServiceException(
-                "대상 애플리케이션의 오디오 세션을 변경할 수 없습니다.",
-                failures.Count > 0
-                    ? new AggregateException(failures)
-                    : new InvalidOperationException("No audio sessions were updated."));
-        }
-
-        if (failures.Count > 0)
-        {
-            throw new AudioServiceException(
-                "일부 오디오 세션을 변경하지 못했습니다. 목록을 새로고침해 주세요.",
-                new AggregateException(failures));
-        }
+        ThrowIfApplicationUpdateFailed(
+            applicationKey,
+            matchedSessionCount,
+            updatedSessionCount,
+            failures,
+            "오디오 세션");
     }
 
-    private static void SetApplicationVolume(
+    private static ApplicationAudioSession ChangeApplicationSessionStates(
         MMDevice device,
-        string applicationKey,
-        int percent)
+        ApplicationVolumeSnapshot snapshot,
+        int? presetPercent)
     {
+        var expectedById = snapshot.Sessions.ToDictionary(
+            session => session.SessionInstanceId,
+            StringComparer.Ordinal);
+        var current = ReadApplicationSessionSnapshots(device)
+            .Where(session => string.Equals(
+                session.ProcessName,
+                snapshot.ApplicationKey,
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (!expectedById.Keys.ToHashSet(StringComparer.Ordinal)
+                .SetEquals(current.Select(session => session.SessionInstanceId)))
+        {
+            throw new AudioServiceException(
+                "애플리케이션의 오디오 세션이 바뀌어 이전 상태를 적용하지 않았습니다.",
+                new InvalidOperationException("The application audio session set changed."));
+        }
+
         var sessionManager = device.AudioSessionManager;
         sessionManager.RefreshSessions();
         var sessions = sessionManager.Sessions;
         var sessionCount = sessions.Count;
-        var matchedSessionCount = 0;
-        var updatedSessionCount = 0;
+        var updatedIds = new HashSet<string>(StringComparer.Ordinal);
         var failures = new List<Exception>();
-        var scalarVolume = percent / 100f;
 
         for (var index = 0; index < sessionCount; index++)
         {
@@ -270,34 +389,97 @@ public sealed class AudioService : IAudioService
                 using var session = sessions[index];
                 var identity = TryReadSessionIdentity(session);
 
-                if (identity is null || !string.Equals(
-                        identity.ProcessName,
-                        applicationKey,
-                        StringComparison.OrdinalIgnoreCase))
+                if (identity is null ||
+                    !expectedById.TryGetValue(identity.SessionInstanceId, out var baseline))
                 {
                     continue;
                 }
 
-                matchedSessionCount++;
-
                 try
                 {
-                    session.SimpleAudioVolume.Volume = scalarVolume;
-                    session.SimpleAudioVolume.Mute = false;
-                    updatedSessionCount++;
+                    session.SimpleAudioVolume.Volume = presetPercent is int percent
+                        ? percent / 100f
+                        : Math.Clamp(baseline.VolumeScalar, 0f, 1f);
+                    session.SimpleAudioVolume.Mute = presetPercent is null && baseline.IsMuted;
+                    updatedIds.Add(identity.SessionInstanceId);
                 }
                 catch (Exception exception)
                 {
                     failures.Add(exception);
-                    Debug.WriteLine($"Audio session {index} volume could not be updated: {exception}");
+                    Debug.WriteLine($"Audio session {index} state could not be updated: {exception}");
                 }
             }
             catch (Exception exception)
             {
-                Debug.WriteLine($"Audio session {index} disappeared while updating volume: {exception}");
+                Debug.WriteLine($"Audio session {index} disappeared while updating state: {exception}");
             }
         }
 
+        if (!updatedIds.SetEquals(expectedById.Keys) || failures.Count > 0)
+        {
+            throw new AudioServiceException(
+                "일부 오디오 세션의 소리 상태를 변경하지 못했습니다.",
+                failures.Count > 0
+                    ? new AggregateException(failures)
+                    : new InvalidOperationException("Not all expected sessions were updated."));
+        }
+
+        var verifiedSnapshot = CaptureApplicationVolumeSnapshot(device, snapshot.ApplicationKey);
+        VerifyApplicationState(snapshot, verifiedSnapshot, presetPercent);
+        var aggregate = AggregateApplicationSessions(ReadApplicationSessionSnapshots(device))
+            .FirstOrDefault(session => string.Equals(
+                session.ApplicationKey,
+                snapshot.ApplicationKey,
+                StringComparison.OrdinalIgnoreCase));
+
+        return aggregate ?? throw new AudioServiceException(
+            "변경한 애플리케이션 오디오 세션을 다시 확인할 수 없습니다.",
+            new InvalidOperationException("The updated application session disappeared."));
+    }
+
+    private static void VerifyApplicationState(
+        ApplicationVolumeSnapshot baseline,
+        ApplicationVolumeSnapshot current,
+        int? presetPercent)
+    {
+        var currentById = current.Sessions.ToDictionary(
+            session => session.SessionInstanceId,
+            StringComparer.Ordinal);
+
+        if (!currentById.Keys.ToHashSet(StringComparer.Ordinal)
+                .SetEquals(baseline.Sessions.Select(session => session.SessionInstanceId)))
+        {
+            throw new AudioServiceException(
+                "오디오 세션 구성이 변경되어 결과를 확인할 수 없습니다.",
+                new InvalidOperationException("The session set changed while verifying audio state."));
+        }
+
+        foreach (var expected in baseline.Sessions)
+        {
+            var actual = currentById[expected.SessionInstanceId];
+            var expectedScalar = presetPercent is int percent
+                ? percent / 100f
+                : expected.VolumeScalar;
+            var expectedMuted = presetPercent is null && expected.IsMuted;
+
+            if (actual.IsMuted != expectedMuted ||
+                Math.Abs(actual.VolumeScalar - expectedScalar) > ScalarComparisonTolerance)
+            {
+                throw new AudioServiceException(
+                    "오디오 세션의 소리 상태가 요청한 값과 다릅니다.",
+                    new InvalidOperationException(
+                        $"Session '{expected.SessionInstanceId}' did not reach the requested state."));
+            }
+        }
+    }
+
+    private static void ThrowIfApplicationUpdateFailed(
+        string applicationKey,
+        int matchedSessionCount,
+        int updatedSessionCount,
+        IReadOnlyCollection<Exception> failures,
+        string operationName)
+    {
         if (matchedSessionCount == 0)
         {
             throw new AudioServiceException(
@@ -305,20 +487,13 @@ public sealed class AudioService : IAudioService
                 new InvalidOperationException($"Audio session group '{applicationKey}' disappeared."));
         }
 
-        if (updatedSessionCount == 0)
+        if (updatedSessionCount == 0 || failures.Count > 0)
         {
             throw new AudioServiceException(
-                "대상 애플리케이션의 볼륨을 변경할 수 없습니다.",
+                $"대상 애플리케이션의 {operationName}을(를) 완전히 변경하지 못했습니다.",
                 failures.Count > 0
                     ? new AggregateException(failures)
                     : new InvalidOperationException("No audio sessions were updated."));
-        }
-
-        if (failures.Count > 0)
-        {
-            throw new AudioServiceException(
-                "일부 오디오 세션의 볼륨을 변경하지 못했습니다. 목록을 새로고침해 주세요.",
-                new AggregateException(failures));
         }
     }
 
@@ -339,8 +514,10 @@ public sealed class AudioService : IAudioService
             }
 
             var processId = session.GetProcessID;
+            var sessionInstanceId = session.GetSessionInstanceIdentifier;
 
-            if (processId == 0 || processId > int.MaxValue)
+            if (processId == 0 || processId > int.MaxValue ||
+                string.IsNullOrWhiteSpace(sessionInstanceId))
             {
                 return null;
             }
@@ -350,7 +527,10 @@ public sealed class AudioService : IAudioService
 
             return string.IsNullOrWhiteSpace(processName)
                 ? null
-                : new ApplicationSessionIdentity(processName, (int)processId);
+                : new ApplicationSessionIdentity(
+                    processName,
+                    (int)processId,
+                    sessionInstanceId);
         }
         catch (Exception exception)
         {
@@ -369,7 +549,6 @@ public sealed class AudioService : IAudioService
             using var device = deviceEnumerator.GetDefaultAudioEndpoint(
                 DataFlow.Render,
                 Role.Multimedia);
-
             return operation(device);
         }
         catch (Exception exception) when (exception is not AudioServiceException)
@@ -380,11 +559,18 @@ public sealed class AudioService : IAudioService
         }
     }
 
-    private sealed record ApplicationSessionIdentity(string ProcessName, int ProcessId);
+    private sealed record ApplicationSessionIdentity(
+        string ProcessName,
+        int ProcessId,
+        string SessionInstanceId);
 
     private sealed record ApplicationSessionSnapshot(
         string ProcessName,
         int ProcessId,
+        string SessionInstanceId,
         bool IsMuted,
-        int VolumePercent);
+        float VolumeScalar)
+    {
+        public int VolumePercent => ToVolumePercent(VolumeScalar);
+    }
 }

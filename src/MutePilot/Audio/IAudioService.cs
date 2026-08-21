@@ -7,4 +7,8 @@ public interface IAudioService
     void SetMasterMuteState(bool isMuted);
 
     bool ToggleMasterMuteState();
+
+    IReadOnlyList<ApplicationAudioSession> GetActiveApplicationSessions();
+
+    ApplicationAudioSession ToggleApplicationMute(string applicationKey);
 }

@@ -46,9 +46,16 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * foreground window와 monitor 크기를 약 400ms마다 비교하는 generic fullscreen 감지 추가
 * fullscreen 중에는 저장된 잠금 설정을 바꾸지 않고 control을 숨기며 `WS_EX_TRANSPARENT` click-through를 강제하도록 변경
 * 일반 화면의 잠금 상태에서는 HUD 본문 click을 통과시키면서 잠금 버튼만 사용할 수 있도록 `WM_NCHITTEST` 처리 추가
+* `System.Windows.Forms.NotifyIcon`을 이용한 시스템 트레이 아이콘과 `MutePilot 열기`, 오버레이 ON/OFF, `종료` 메뉴 추가
+* 메인 창의 X 버튼을 누르면 종료 대신 기존 창을 숨기고, 처음 한 번만 트레이 실행 안내를 요청하도록 변경
+* `ShutdownMode="OnExplicitShutdown"`과 실제 종료 flag를 사용해 트레이 `종료`에서만 hotkey, polling, fullscreen monitor, overlay, tray icon을 정리하도록 구성
+* 트레이 메뉴와 icon double-click에서 새 창을 만들지 않고 기존 `MainWindow`를 복원하도록 연결
+* 트레이 오버레이 메뉴가 기존 `overlayEnabled`를 저장하고 HUD와 메인 화면 ON/OFF 표시를 함께 갱신하도록 구성
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 
 고정형 HUD가 2.3초 뒤에도 유지되는 것과 click-through, focus 유지, ON/OFF, 설정 복원, 같은 window의 상태 갱신을 Windows 환경에서 검증했습니다. 실제 SuddenAttack에서도 게임에 포커스가 있는 동안 HUD가 계속 보이고, Overlay ON/OFF와 기존 F8 앱별 음소거·해제가 정상 동작하는 것을 수동으로 확인했습니다. 다른 독점 전체 화면 애플리케이션 위의 표시는 일반 WPF 창 방식으로 보장되지 않습니다.
 
 위치 이동과 drag 완료 좌표 전달, 잠금 시 이동 차단, 20%·100% 투명도, 화면 밖 좌표 복구, 재시작 위치 복원, 위치 초기화, fullscreen display-only 자동 전환과 복귀를 검증했습니다. 실제 PC에서도 위치 이동, 잠금, 투명도, 위치 초기화와 각 설정의 재시작 복원을 확인했습니다. SuddenAttack foreground/fullscreen에서는 HUD가 자동으로 display-only·click-through 상태가 되어 조작되지 않았고, Alt+Tab 뒤에는 저장된 잠금 상태에 맞춰 설정 기능이 복원됐습니다. 기존 F8 음소거와 Overlay ON/OFF도 그대로 동작했습니다.
+
+시스템 트레이 기능은 실제 Windows UI에서 main window 숨김 뒤 process와 overlay 유지, 메뉴·double-click 복원, 반복 hide/show 중 단일 icon 유지, 오버레이 설정과 메인 UI 동기화, 명시적 종료 시 모든 window와 icon 제거, 정상 재실행을 확인했습니다. 트레이 상태의 SuddenAttack 단독 F8은 아직 실제 게임에서 수동 검증하지 않았습니다.

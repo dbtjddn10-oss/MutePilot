@@ -6,7 +6,21 @@ public interface IOverlayService : IDisposable
 
     void SetEnabled(bool isEnabled);
 
-    void ShowMuteState(string targetName, bool isMuted);
+    void UpdateTargets(IReadOnlyList<OverlayTargetState> targets);
 
     void Hide();
+}
+
+public sealed record OverlayTargetState(
+    string TargetId,
+    string DisplayName,
+    OverlayTargetStatus Status);
+
+public enum OverlayTargetStatus
+{
+    Unknown,
+    Muted,
+    Unmuted,
+    Mixed,
+    NotRunning
 }

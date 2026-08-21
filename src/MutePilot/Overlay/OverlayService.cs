@@ -5,19 +5,15 @@ namespace MutePilot.Overlay;
 
 public sealed class OverlayService : IOverlayService
 {
-    private static readonly TimeSpan DisplayDuration = TimeSpan.FromMilliseconds(1500);
-
     private readonly Dispatcher _dispatcher;
-    private readonly DispatcherTimer _hideTimer;
     private MuteOverlayWindow? _window;
+    private IReadOnlyList<OverlayTargetState> _targets = [];
     private volatile bool _isEnabled = true;
     private bool _disposed;
 
     public OverlayService(Dispatcher dispatcher)
     {
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
-        _hideTimer = new DispatcherTimer(DisplayDuration, DispatcherPriority.Normal, HideTimer_Tick, dispatcher);
-        _hideTimer.Stop();
     }
 
     public bool IsEnabled => _isEnabled;
@@ -30,21 +26,23 @@ public sealed class OverlayService : IOverlayService
         }
 
         _isEnabled = isEnabled;
-
-        if (!isEnabled)
-        {
-            Hide();
-        }
+        RunOnDispatcher(isEnabled ? ShowCore : HideCore);
     }
 
-    public void ShowMuteState(string targetName, bool isMuted)
+    public void UpdateTargets(IReadOnlyList<OverlayTargetState> targets)
     {
-        if (_disposed || !_isEnabled || string.IsNullOrWhiteSpace(targetName))
+        if (_disposed || targets is null)
         {
             return;
         }
 
-        RunOnDispatcher(() => ShowCore(targetName.Trim(), isMuted));
+        var snapshot = targets
+            .Where(target => !string.IsNullOrWhiteSpace(target.TargetId) &&
+                             !string.IsNullOrWhiteSpace(target.DisplayName))
+            .Select(target => target with { DisplayName = target.DisplayName.Trim() })
+            .ToArray();
+
+        RunOnDispatcher(() => UpdateTargetsCore(snapshot));
     }
 
     public void Hide()
@@ -72,7 +70,6 @@ public sealed class OverlayService : IOverlayService
 
         _disposed = true;
         _isEnabled = false;
-        _hideTimer.Stop();
 
         if (_window is not null)
         {
@@ -81,15 +78,29 @@ public sealed class OverlayService : IOverlayService
         }
     }
 
-    private void ShowCore(string targetName, bool isMuted)
+    private void UpdateTargetsCore(IReadOnlyList<OverlayTargetState> targets)
     {
-        if (_disposed || !_isEnabled)
+        _targets = targets;
+
+        if (_targets.Count == 0)
+        {
+            HideCore();
+        }
+        else if (_isEnabled)
+        {
+            ShowCore();
+        }
+    }
+
+    private void ShowCore()
+    {
+        if (_disposed || !_isEnabled || _targets.Count == 0)
         {
             return;
         }
 
         _window ??= new MuteOverlayWindow();
-        _window.UpdateState(targetName, isMuted);
+        _window.UpdateTargets(_targets);
 
         if (!_window.IsVisible)
         {
@@ -97,21 +108,15 @@ public sealed class OverlayService : IOverlayService
         }
 
         _window.PositionNearPrimaryWorkAreaTopRight();
-        _hideTimer.Stop();
-        _hideTimer.Start();
     }
 
     private void HideCore()
     {
-        _hideTimer.Stop();
-
         if (_window?.IsVisible == true)
         {
             _window.Hide();
         }
     }
-
-    private void HideTimer_Tick(object? sender, EventArgs e) => HideCore();
 
     private void RunOnDispatcher(Action action)
     {

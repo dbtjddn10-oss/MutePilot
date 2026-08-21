@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using MutePilot.Audio;
 using MutePilot.Hotkeys;
 using MutePilot.Overlay;
@@ -11,18 +12,32 @@ namespace MutePilot;
 
 public partial class MainWindow : Window
 {
+    private static readonly TimeSpan OverlayRefreshInterval = TimeSpan.FromSeconds(2);
+
     private readonly IAudioService _audioService = new AudioService();
     private readonly IHotkeyService _hotkeyService = new HotkeyService();
     private readonly ISettingsService _settingsService = new SettingsService();
     private readonly IOverlayService _overlayService;
+    private readonly DispatcherTimer _overlayRefreshTimer;
     private AppSettings _settings = new();
+    private IReadOnlyList<ApplicationAudioSession> _activeApplicationSessions = [];
+    private bool? _masterIsMuted;
     private bool _hotkeysInitialized;
     private bool _isCapturingHotkey;
+    private bool _isOverlayRefreshRunning;
+    private bool _isClosed;
+    private long _audioStateRevision;
 
     public MainWindow()
     {
         InitializeComponent();
         _overlayService = new OverlayService(Dispatcher);
+        _overlayRefreshTimer = new DispatcherTimer(
+            OverlayRefreshInterval,
+            DispatcherPriority.Background,
+            OverlayRefreshTimer_Tick,
+            Dispatcher);
+        _overlayRefreshTimer.Stop();
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -45,6 +60,7 @@ public partial class MainWindow : Window
             _settings = loadResult.Settings;
             _overlayService.SetEnabled(_settings.OverlayEnabled);
             UpdateOverlaySettingDisplay();
+            RefreshOverlayHud();
 
             if (!string.IsNullOrWhiteSpace(loadResult.WarningMessage))
             {
@@ -81,6 +97,9 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _isClosed = true;
+        _overlayRefreshTimer.Stop();
+        _overlayRefreshTimer.Tick -= OverlayRefreshTimer_Tick;
         _hotkeyService.HotkeyPressed -= HotkeyService_HotkeyPressed;
         _hotkeyService.Dispose();
         _overlayService.Dispose();
@@ -91,6 +110,7 @@ public partial class MainWindow : Window
     {
         RefreshMasterAudioState();
         RefreshApplicationSessions();
+        _overlayRefreshTimer.Start();
     }
 
     private void MasterMuteButton_Click(object sender, RoutedEventArgs e)
@@ -102,7 +122,6 @@ public partial class MainWindow : Window
         {
             var isMuted = _audioService.ToggleMasterMuteState();
             UpdateMasterAudioState(isMuted);
-            _overlayService.ShowMuteState("Master Audio", isMuted);
         }
         catch (Exception exception)
         {
@@ -130,6 +149,13 @@ public partial class MainWindow : Window
             _settingsService.Save(_settings);
             _overlayService.SetEnabled(_settings.OverlayEnabled);
             UpdateOverlaySettingDisplay();
+            RefreshOverlayHud();
+
+            if (_settings.OverlayEnabled)
+            {
+                _ = RefreshOverlayAudioStateAsync();
+            }
+
             HotkeyErrorText.Visibility = Visibility.Collapsed;
         }
         catch (Exception exception)
@@ -158,8 +184,7 @@ public partial class MainWindow : Window
 
         try
         {
-            var session = _audioService.ToggleApplicationMute(applicationKey);
-            _overlayService.ShowMuteState(session.ApplicationName, session.IsMuted);
+            _audioService.ToggleApplicationMute(applicationKey);
             RefreshApplicationSessions();
         }
         catch (Exception exception)
@@ -333,12 +358,10 @@ public partial class MainWindow : Window
             {
                 var isMuted = _audioService.ToggleMasterMuteState();
                 UpdateMasterAudioState(isMuted);
-                _overlayService.ShowMuteState("Master Audio", isMuted);
             }
             else if (!string.IsNullOrWhiteSpace(e.Binding.ProcessName))
             {
-                var session = _audioService.ToggleApplicationMute(e.Binding.ProcessName);
-                _overlayService.ShowMuteState(session.ApplicationName, session.IsMuted);
+                _audioService.ToggleApplicationMute(e.Binding.ProcessName);
                 RefreshApplicationSessions();
             }
         }
@@ -376,6 +399,8 @@ public partial class MainWindow : Window
         try
         {
             var activeSessions = _audioService.GetActiveApplicationSessions();
+            _activeApplicationSessions = activeSessions;
+            _audioStateRevision++;
             var activeNames = new HashSet<string>(
                 activeSessions.Select(session => session.ApplicationKey),
                 StringComparer.OrdinalIgnoreCase);
@@ -391,6 +416,8 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
+            _activeApplicationSessions = [];
+            _audioStateRevision++;
             var savedItems = _settings.ApplicationBindings.Select(CreateInactiveApplicationItem)
                 .OrderBy(item => item.ApplicationName, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
@@ -403,6 +430,7 @@ public partial class MainWindow : Window
         finally
         {
             ApplicationRefreshButton.IsEnabled = true;
+            RefreshOverlayHud();
         }
     }
 
@@ -531,9 +559,95 @@ public partial class MainWindow : Window
 
     private void UpdateMasterAudioState(bool isMuted)
     {
+        _masterIsMuted = isMuted;
+        _audioStateRevision++;
         MasterAudioStatusText.Text = isMuted ? "현재 상태: 음소거" : "현재 상태: 음소거 해제";
         MasterMuteButton.Content = isMuted ? "음소거 해제" : "음소거";
         AudioErrorText.Visibility = Visibility.Collapsed;
+        RefreshOverlayHud();
+    }
+
+    private async void OverlayRefreshTimer_Tick(object? sender, EventArgs e) =>
+        await RefreshOverlayAudioStateAsync();
+
+    private async Task RefreshOverlayAudioStateAsync()
+    {
+        if (_isClosed || !_settings.OverlayEnabled || _isOverlayRefreshRunning)
+        {
+            return;
+        }
+
+        _isOverlayRefreshRunning = true;
+        var revisionAtStart = _audioStateRevision;
+
+        try
+        {
+            var snapshot = await Task.Run(() => new OverlayAudioSnapshot(
+                _audioService.GetMasterMuteState(),
+                _audioService.GetActiveApplicationSessions()));
+
+            if (_isClosed || !_settings.OverlayEnabled || revisionAtStart != _audioStateRevision)
+            {
+                return;
+            }
+
+            _masterIsMuted = snapshot.MasterIsMuted;
+            _activeApplicationSessions = snapshot.ApplicationSessions;
+            _audioStateRevision++;
+            RefreshOverlayHud();
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"Overlay state refresh failed: {exception}");
+        }
+        finally
+        {
+            _isOverlayRefreshRunning = false;
+        }
+    }
+
+    private void RefreshOverlayHud()
+    {
+        var activeSessions = _activeApplicationSessions.ToDictionary(
+            session => session.ApplicationKey,
+            StringComparer.OrdinalIgnoreCase);
+        var targets = new List<OverlayTargetState>
+        {
+            new(
+                HotkeyBinding.MasterTargetId,
+                "Master",
+                _masterIsMuted switch
+                {
+                    true => OverlayTargetStatus.Muted,
+                    false => OverlayTargetStatus.Unmuted,
+                    null => OverlayTargetStatus.Unknown
+                })
+        };
+
+        foreach (var processName in _settings.ApplicationBindings
+                     .Select(setting => setting.ProcessName)
+                     .Where(processName => !string.IsNullOrWhiteSpace(processName))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(processName => processName, StringComparer.OrdinalIgnoreCase))
+        {
+            var status = OverlayTargetStatus.NotRunning;
+
+            if (activeSessions.TryGetValue(processName, out var session))
+            {
+                status = session.HasMixedMuteState
+                    ? OverlayTargetStatus.Mixed
+                    : session.IsMuted
+                        ? OverlayTargetStatus.Muted
+                        : OverlayTargetStatus.Unmuted;
+            }
+
+            targets.Add(new OverlayTargetState(
+                HotkeyBinding.GetApplicationTargetId(processName),
+                processName,
+                status));
+        }
+
+        _overlayService.UpdateTargets(targets);
     }
 
     private void ShowAudioError(Exception exception)
@@ -579,4 +693,8 @@ public partial class MainWindow : Window
         string HotkeyButtonText,
         Visibility RemoveButtonVisibility,
         bool IsRunning);
+
+    private sealed record OverlayAudioSnapshot(
+        bool MasterIsMuted,
+        IReadOnlyList<ApplicationAudioSession> ApplicationSessions);
 }

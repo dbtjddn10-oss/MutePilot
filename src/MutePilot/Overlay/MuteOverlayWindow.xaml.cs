@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 
 namespace MutePilot.Overlay;
 
@@ -10,7 +11,8 @@ public partial class MuteOverlayWindow : Window
     private const int WsExTransparent = 0x00000020;
     private const int WsExToolWindow = 0x00000080;
     private const int WsExNoActivate = 0x08000000;
-    private const double WorkAreaMargin = 20;
+    private const int MaximumApplicationRows = 7;
+    private const double WorkAreaMargin = 12;
 
     public MuteOverlayWindow()
     {
@@ -27,11 +29,42 @@ public partial class MuteOverlayWindow : Window
         SetWindowLongPtr(handle, GwlExStyle, new nint(extendedStyle));
     }
 
-    public void UpdateState(string targetName, bool isMuted)
+    public void UpdateTargets(IReadOnlyList<OverlayTargetState> targets)
     {
-        TargetNameText.Text = targetName;
-        StateIconText.Text = isMuted ? "🔇" : "🔊";
-        StateText.Text = isMuted ? "음소거" : "음소거 해제";
+        var master = targets.Take(1);
+        var applications = targets.Skip(1).Take(MaximumApplicationRows);
+        var rows = master.Concat(applications)
+            .Select(CreateRow)
+            .ToList();
+        var hiddenCount = Math.Max(0, targets.Count - rows.Count);
+
+        if (hiddenCount > 0)
+        {
+            rows.Add(new OverlayTargetRow(
+                $"외 {hiddenCount}개",
+                string.Empty,
+                Brushes.Gray,
+                0.65));
+        }
+
+        TargetItemsControl.ItemsSource = rows;
+    }
+
+    private static OverlayTargetRow CreateRow(OverlayTargetState target)
+    {
+        return target.Status switch
+        {
+            OverlayTargetStatus.Muted => new OverlayTargetRow(
+                target.DisplayName, "🔇 음소거", Brushes.LightCoral, 1),
+            OverlayTargetStatus.Unmuted => new OverlayTargetRow(
+                target.DisplayName, "🔊 음소거 해제", Brushes.LightGreen, 1),
+            OverlayTargetStatus.Mixed => new OverlayTargetRow(
+                target.DisplayName, "일부 음소거", Brushes.Khaki, 1),
+            OverlayTargetStatus.NotRunning => new OverlayTargetRow(
+                target.DisplayName, "실행 안 됨", Brushes.Gray, 0.68),
+            _ => new OverlayTargetRow(
+                target.DisplayName, "확인 중", Brushes.Gray, 0.68)
+        };
     }
 
     public void PositionNearPrimaryWorkAreaTopRight()
@@ -71,4 +104,10 @@ public partial class MuteOverlayWindow : Window
             SetWindowLong32(windowHandle, index, newValue.ToInt32());
         }
     }
+
+    private sealed record OverlayTargetRow(
+        string Name,
+        string StatusText,
+        Brush StatusBrush,
+        double Opacity);
 }

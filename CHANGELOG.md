@@ -58,6 +58,18 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * `WindowsIdentity`와 `WindowsPrincipal`로 현재 process의 관리자 권한 상태를 표시하고 같은 실행 파일을 관리자 권한으로 다시 시작하는 기능 추가
 * 사용자 SID와 session ID 기반 named Mutex로 중복 process, tray icon, hotkey 등록을 막는 단일 실행 보호 추가
 * 관리자 재실행 process가 기존 Mutex 해제를 기다리는 `--elevated-restart` handoff 경로 추가
+* Master Audio와 각 저장 애플리케이션에 1~100% 볼륨 프리셋, 전용 단축키, 수동 `적용` 기능 추가
+* `HotkeyActionType`과 action별 binding ID를 도입해 한 대상에 음소거와 볼륨 단축키를 함께 등록하도록 변경
+* 기존 `MasterHotkey`, `ApplicationBindings[].Hotkey`를 음소거 단축키로 유지하면서 선택형 볼륨 단축키와 기본 50% 값을 JSON schema에 호환 방식으로 추가
+* 기본 playback endpoint의 master scalar volume 조회·설정과 `ProcessName`이 같은 모든 활성 audio session의 볼륨 일괄 설정 추가
+* 볼륨 프리셋 적용 시 해당 대상을 음소거 해제하고 실제 결과를 다시 읽어 UI와 HUD에 반영
+* 여러 앱 session의 현재 볼륨이 다르면 `혼합`으로 표시하고 HUD에 음소거·볼륨 상태를 compact하게 함께 표시
+* 음소거와 볼륨 action을 포함한 모든 MutePilot 단축키 사이의 중복 검사 추가
+
+### 변경
+
+* 시작·권한 영역 제목을 `실행 설정`으로 바꾸고 자동 실행 문구를 `Windows 로그인 시 MutePilot 자동 실행`으로 명확히 수정
+* 관리자 재실행 버튼 문구를 `MutePilot을 관리자 권한으로 재시작`으로 바꿔 Windows 재시작과 혼동하지 않도록 개선
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 

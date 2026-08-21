@@ -10,7 +10,7 @@ MutePilot은 사용자가 지정한 전역 단축키로 Windows의 마스터 오
 
 ## 현재 개발 상태
 
-현재는 **v0.4 기능 개발 단계**입니다.
+현재는 **v0.5 기능 개발 단계**입니다.
 
 .NET 8 WPF 앱에서 Windows 기본 출력 장치의 마스터 음소거 상태를 읽고, 버튼으로 음소거와 음소거 해제를 전환하는 기능을 구현했습니다. 실제 Windows PC에서 음소거, 음소거 해제, UI 상태 반영이 정상 동작하는 것을 수동으로 확인했습니다.
 
@@ -52,9 +52,9 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 
 **시스템 트레이 백그라운드 동작: 구현 및 실제 PC·SuddenAttack 수동 검증 완료**
 
-메인 화면의 `Windows 시작` 영역에서 현재 권한을 `관리자 권한` 또는 `일반 권한`으로 확인하고, 필요할 때 `관리자 권한으로 다시 시작`을 선택할 수 있습니다. 재실행과 자동 시작 작업 변경은 Windows의 정상 `runas` UAC 흐름을 사용하며 UAC를 우회하거나 관리자 자격 증명을 저장하지 않습니다. 이미 관리자 권한이면 재실행 버튼은 비활성화됩니다.
+메인 화면의 `실행 설정` 영역에서 `현재 실행 권한`을 `관리자 권한` 또는 `일반 권한`으로 확인하고, 필요할 때 `MutePilot을 관리자 권한으로 재시작`을 선택할 수 있습니다. 이 문구는 Windows나 PC를 재시작한다는 뜻이 아니라 MutePilot process만 다시 실행한다는 뜻입니다. 재실행과 자동 실행 작업 변경은 Windows의 정상 `runas` UAC 흐름을 사용하며 UAC를 우회하거나 관리자 자격 증명을 저장하지 않습니다. 이미 관리자 권한이면 재실행 버튼은 비활성화됩니다.
 
-`Windows 시작 시 실행`을 ON으로 바꾸면 시작프로그램 폴더나 `HKCU Run` 대신 현재 사용자 전용 Task Scheduler 작업 `MutePilot Startup`을 등록합니다. 이 작업은 현재 사용자가 로그인할 때 `Highest` run level과 `InteractiveToken`으로 현재 MutePilot 실행 파일에 `--background`를 전달합니다. SYSTEM 계정으로 실행하지 않습니다. OFF로 바꾸면 같은 작업을 제거하며, 생성·삭제가 실패하거나 UAC가 취소되면 실제 작업 상태를 다시 읽어 UI에 반영합니다.
+`Windows 로그인 시 MutePilot 자동 실행`을 ON으로 바꾸면 시작프로그램 폴더나 `HKCU Run` 대신 현재 사용자 전용 Task Scheduler 작업 `MutePilot Startup`을 등록합니다. 이 작업은 현재 사용자가 로그인할 때 `Highest` run level과 `InteractiveToken`으로 현재 MutePilot 실행 파일에 `--background`를 전달합니다. SYSTEM 계정으로 실행하지 않습니다. OFF로 바꾸면 같은 작업을 제거하며, 생성·삭제가 실패하거나 UAC가 취소되면 실제 작업 상태를 다시 읽어 UI에 반영합니다.
 
 `--background` 실행은 메인 창을 띄우지 않지만 tray icon, hotkey, 단독 F키 polling, audio service와 저장된 overlay 설정을 정상 초기화합니다. 사용자는 나중에 tray icon으로 같은 `MainWindow`를 열 수 있습니다. 사용자 SID와 Windows session ID가 포함된 named Mutex로 중복 실행을 막아 두 번째 background 실행은 조용히 끝나고, 두 번째 일반 실행은 이미 실행 중이라는 안내 후 종료됩니다.
 
@@ -65,6 +65,18 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 일반 GUI, 권한 표시, `--background`, overlay OFF/ON 복원, tray 복원, normal/background 중복 실행 차단과 Mutex handoff는 실제 Windows에서 확인했습니다. 현재 환경에서는 highest task 생성이 UAC 승인을 요구해 실제 task 생성·삭제, Windows 재로그인 자동 실행, elevated 재실행, 자동 시작된 관리자 인스턴스의 SuddenAttack F8은 아직 수동 검증하지 않았습니다. 테스트 뒤 `MutePilot Startup` 작업은 없는 OFF 상태입니다.
 
 **Windows 자동 시작·관리자 권한·단일 실행: 구현 완료 / UAC 및 실제 로그인 수동 검증 필요**
+
+Master Audio와 저장된 각 애플리케이션에는 기존 음소거 단축키와 별도로 1~100% 범위의 볼륨 프리셋과 전용 단축키를 설정할 수 있습니다. 볼륨 단축키는 현재 값에서 증감하는 방식이 아니라 저장한 퍼센트로 정확히 맞추며, 대상이 음소거 상태라면 음소거도 해제합니다. 예를 들어 F1을 음소거, F2를 25% 프리셋으로 두면 F1로 소리를 끄고 F2로 25% 청취 상태를 복구할 수 있습니다.
+
+Master Audio는 기본 Windows playback endpoint의 scalar volume을 사용합니다. 앱별 적용은 같은 `ProcessName`을 가진 현재 오디오 session을 모두 찾아 같은 값으로 맞추므로 session마다 달랐던 볼륨은 적용 뒤 하나의 값이 됩니다. 다른 애플리케이션 session은 변경하지 않습니다. Slider 이동은 프리셋 설정만 저장하며 실제 오디오는 `적용` 버튼이나 볼륨 단축키를 사용했을 때만 바뀝니다.
+
+기존 `MasterHotkey`와 `ApplicationBindings[].Hotkey`는 그대로 음소거 단축키로 읽습니다. 새 `MasterVolumeHotkey`, `MasterVolumePercent`, `VolumeHotkey`, `VolumePercent`가 없는 기존 설정 파일은 볼륨 단축키가 없는 상태와 안전한 기본값 50%로 불러오며, 앱 시작만으로 파일을 다시 쓰거나 오디오를 바꾸지 않습니다. 음소거와 볼륨 action을 포함한 모든 MutePilot 단축키는 서로 중복될 수 없습니다.
+
+메인 화면과 HUD에는 현재 볼륨이 표시됩니다. 여러 session의 값이 다르면 앱 목록에는 `혼합`으로 보이고, 프리셋 적용 뒤에는 지정한 퍼센트로 갱신됩니다. HUD는 음소거 해제 상태를 `🔊 25%`처럼 작게 표시하고 음소거 상태에서도 저장된 현재 볼륨을 함께 보여 줍니다.
+
+현재 Windows에서 기존 형식의 설정 파일이 변경 없이 로드되는 것, slider 편집만으로 실제 오디오가 바뀌지 않는 것, Master와 무음 테스트 앱의 `적용`, 음소거된 테스트 앱의 프리셋 적용 시 음소거 해제, 두 개 session의 혼합 볼륨을 같은 값으로 맞추는 동작, action 간 단축키 충돌 거부, HUD 볼륨 표시를 확인했습니다. 실제 SuddenAttack에서 음소거·볼륨 단축키를 함께 사용하는 동작은 아직 수동 검증이 필요합니다.
+
+**볼륨 프리셋 단축키: 구현 및 안전한 Windows 세션 검증 완료 / 실제 게임 수동 검증 필요**
 
 ## 앞으로 구현할 기능
 
@@ -81,8 +93,9 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 * Task Scheduler 기반 Windows 자동 시작과 `--background` 실행 — 구현 완료, 실제 로그인 수동 검증 필요
 * 관리자 권한 상태 표시와 명시적 관리자 재실행 — 구현 완료, UAC 수동 검증 필요
 * 사용자 session별 단일 실행 보호 — 구현 및 중복 실행 검증 완료
+* Master·애플리케이션별 볼륨 프리셋과 전용 단축키 — 구현 및 안전한 오디오 session 검증 완료, 실제 게임 수동 검증 필요
 
-오디오 볼륨 조절 기능은 현재 범위에 포함하지 않습니다.
+연속적인 볼륨 증가·감소 조절은 현재 범위에 포함하지 않습니다. 볼륨 기능은 사용자가 저장한 값으로 정확히 맞추는 프리셋 방식만 제공합니다.
 
 ## 사용 기술
 
@@ -114,8 +127,9 @@ Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능�
 8. 선택형 음소거 상태 오버레이 구현 — 고정형 HUD 개선 및 SuddenAttack 수동 검증 완료
 9. 오버레이 위치·잠금·투명도 설정과 fullscreen display-only 처리 — 구현 및 SuddenAttack 수동 검증 완료
 10. 시스템 트레이 백그라운드 동작 — 구현 및 SuddenAttack 수동 검증 완료
-11. Windows 시작 시 자동 실행, 관리자 권한 UX, background 시작, 단일 실행 보호 — 구현 완료, UAC·로그인 수동 검증 필요
-12. 최종 UI/아이콘 정리와 Release 배포 구조 준비
+11. Windows 로그인 시 자동 실행, 관리자 권한 UX, background 시작, 단일 실행 보호 — 구현 완료, UAC·로그인 수동 검증 필요
+12. Master·앱별 볼륨 프리셋과 전용 단축키 — 구현 완료, 실제 게임 수동 검증 필요
+13. 최종 UI/아이콘 정리와 Release 배포 구조 준비
 
 ## 작성자
 

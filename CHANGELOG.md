@@ -51,4 +51,4 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 
 고정형 HUD가 2.3초 뒤에도 유지되는 것과 click-through, focus 유지, ON/OFF, 설정 복원, 같은 window의 상태 갱신을 Windows 환경에서 검증했습니다. 실제 SuddenAttack에서도 게임에 포커스가 있는 동안 HUD가 계속 보이고, Overlay ON/OFF와 기존 F8 앱별 음소거·해제가 정상 동작하는 것을 수동으로 확인했습니다. 다른 독점 전체 화면 애플리케이션 위의 표시는 일반 WPF 창 방식으로 보장되지 않습니다.
 
-위치 이동과 drag 완료 좌표 전달, 잠금 시 이동 차단, 20%·100% 투명도, 화면 밖 좌표 복구, 재시작 위치 복원, 위치 초기화, fullscreen display-only 자동 전환과 복귀를 검증했습니다. 새 설정 UI의 SuddenAttack mouse interaction은 아직 수동 검증하지 않았습니다.
+위치 이동과 drag 완료 좌표 전달, 잠금 시 이동 차단, 20%·100% 투명도, 화면 밖 좌표 복구, 재시작 위치 복원, 위치 초기화, fullscreen display-only 자동 전환과 복귀를 검증했습니다. 실제 PC에서도 위치 이동, 잠금, 투명도, 위치 초기화와 각 설정의 재시작 복원을 확인했습니다. SuddenAttack foreground/fullscreen에서는 HUD가 자동으로 display-only·click-through 상태가 되어 조작되지 않았고, Alt+Tab 뒤에는 저장된 잠금 상태에 맞춰 설정 기능이 복원됐습니다. 기존 F8 음소거와 Overlay ON/OFF도 그대로 동작했습니다.

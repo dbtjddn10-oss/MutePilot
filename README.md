@@ -40,9 +40,9 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 
 오버레이는 MutePilot이 별도의 WPF 창으로 표시하며 게임 프로세스에 접근하거나 화면에 코드를 주입하지 않습니다. 실제 SuddenAttack 환경에서 게임에 포커스가 있는 동안에도 고정형 HUD가 계속 보이고, Overlay ON/OFF와 기존 F8 앱별 음소거·해제가 함께 정상 동작하는 것을 수동으로 확인했습니다. 다만 일반 WPF 창 방식이므로 다른 독점 전체 화면 애플리케이션에서도 항상 표시된다고 보장할 수는 없습니다.
 
-위치·잠금·투명도 설정과 fullscreen display-only 전환은 일반 Windows 환경과 controllable fullscreen state로 자동 검증했습니다. 설정 가능한 새 HUD가 SuddenAttack에서 mouse 입력을 방해하지 않는지는 사용자가 다시 수동 확인할 예정입니다.
+실제 PC에서 잠금 해제 상태의 위치 이동, 잠금 상태의 이동 차단, 투명도 조절, 위치·투명도·잠금 상태의 재시작 복원, 위치 초기화를 수동 확인했습니다. SuddenAttack이 foreground/fullscreen일 때는 HUD가 자동으로 display-only·click-through 상태가 되어 게임 중 조작되지 않았고, Alt+Tab 뒤에는 저장된 잠금 상태에 맞춰 설정 기능이 다시 제공됐습니다. 기존 SuddenAttack F8 음소거와 Overlay ON/OFF도 그대로 동작했습니다.
 
-**음소거 상태 오버레이: 고정형 HUD 수동 검증 완료 / 사용자 설정 구현 완료 / 게임 설정 동작 재검증 필요**
+**음소거 상태 오버레이: 고정형 HUD 및 사용자 설정 실제 PC 수동 검증 완료**
 
 ## 앞으로 구현할 기능
 
@@ -53,8 +53,8 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 * 여러 애플리케이션 단축키 바인딩 저장 — 구현 완료
 * 프로그램을 다시 실행해도 유지되는 로컬 설정 — 구현 완료, 기본 설정 생성·재로드 확인
 * 선택형 음소거 상태 오버레이 — 고정형 compact HUD 구현 및 SuddenAttack 수동 검증 완료
-* 오버레이 위치 이동·잠금·20~100% 투명도 설정 — 구현 및 Windows 환경 검증 완료
-* fullscreen foreground에서 자동 display-only·click-through 전환 — 구현 및 자동 검증 완료
+* 오버레이 위치 이동·잠금·20~100% 투명도 설정 — 구현 및 실제 PC 수동 검증 완료
+* fullscreen foreground에서 자동 display-only·click-through 전환 — 구현 및 SuddenAttack 수동 검증 완료
 
 오디오 볼륨 조절 기능은 현재 범위에 포함하지 않습니다.
 
@@ -82,7 +82,7 @@ Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능�
 6. 단축키 바인딩과 설정 저장 — 구현 완료
 7. 실제 게임·브라우저 환경에서 단축키 수동 검증 — 완료, 관리자 게임 권한 제한 확인
 8. 선택형 음소거 상태 오버레이 구현 — 고정형 HUD 개선 및 SuddenAttack 수동 검증 완료
-9. 오버레이 위치·잠금·투명도 설정과 fullscreen display-only 처리 — 구현 완료, 실제 게임 수동 검증 필요
+9. 오버레이 위치·잠금·투명도 설정과 fullscreen display-only 처리 — 구현 및 SuddenAttack 수동 검증 완료
 10. 시스템 트레이와 시작 옵션 검토
 
 ## 작성자

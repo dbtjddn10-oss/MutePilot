@@ -31,4 +31,4 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * `GetAsyncKeyState`의 high-order bit와 key latch로 down 전환을 구분해 키를 누르고 있을 때 반복 토글되지 않도록 처리
 * 단축키 입력 창의 표시 영역 높이와 padding을 늘려 단축키 문자열이 잘리던 문제 수정
 
-마스터 음소거와 앱별 음소거 기능은 실제 Windows PC에서 수동 검증까지 완료했습니다. modifier 전역 단축키도 Whale과 SuddenAttack에서 확인했습니다. Raw Input에서는 실패했던 단독 F7/F8을 polling으로 다시 개선했으며 SuddenAttack foreground 동작은 아직 수동 검증하지 않았습니다.
+마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.

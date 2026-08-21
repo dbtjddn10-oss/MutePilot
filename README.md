@@ -1,45 +1,51 @@
 # MutePilot
 
-A lightweight Windows utility for custom hotkey-based application audio muting. MutePilot is planned to let users mute or unmute Windows master audio and individual application audio sessions using custom global keyboard shortcuts.
+## MutePilot 소개
 
-## Current Status
+MutePilot은 사용자가 지정한 전역 단축키로 Windows의 마스터 오디오와 개별 애플리케이션 오디오 세션을 음소거하거나 다시 켤 수 있도록 만드는 가벼운 Windows 유틸리티입니다.
 
-**Planning / Initial setup**
+## 만들게 된 이유
 
-The repository structure, documentation standards, and Git workflow are being established. No application functionality has been implemented yet.
+게임이나 작업 중에 여러 창을 오가지 않고 필요한 소리만 빠르게 제어하는 도구를 직접 만들어 보기 위해 시작했습니다. Windows 오디오 API와 전역 단축키가 실제 데스크톱 프로그램에서 어떻게 연결되는지 배우는 과정도 함께 기록합니다.
 
-## Planned Core Features
+## 현재 개발 상태
 
-* Windows master mute/unmute
-* Detection of applications with active Windows audio sessions
-* Per-application mute/unmute
-* Custom global hotkeys with mute/unmute toggle behavior
-* Multiple saved application hotkey bindings
-* Persistent local settings that survive program restarts
+현재는 **v0.1 초기 개발 단계**입니다.
 
-Audio volume adjustment is not currently planned.
+.NET 8 WPF 솔루션과 실행 가능한 기본 창을 만들었습니다. 화면에는 앞으로 사용할 `Master Audio`와 `Application Shortcuts` 영역만 배치되어 있으며, 음소거와 단축키 기능은 아직 구현하지 않았습니다.
 
-## Technology Direction
+## 앞으로 구현할 기능
 
-* C#
+* Windows 마스터 음소거/음소거 해제
+* 활성 Windows 오디오 세션을 사용하는 애플리케이션 감지
+* 애플리케이션별 음소거/음소거 해제
+* 사용자 지정 전역 단축키와 토글 동작
+* 여러 애플리케이션 단축키 바인딩 저장
+* 프로그램을 다시 실행해도 유지되는 로컬 설정
+
+오디오 볼륨 조절 기능은 현재 범위에 포함하지 않습니다.
+
+## 사용 기술
+
+* C# 12
 * .NET 8
 * WPF
-* Windows Core Audio APIs
-* Windows global hotkeys
-* JSON settings persistence
+* Windows Core Audio APIs (예정)
+* Windows global hotkeys (예정)
+* JSON 설정 저장 (예정)
 
-Windows API integration will be kept separate from UI logic, with an emphasis on simple and maintainable design.
+Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능부터 단순하게 구현할 계획입니다.
 
-## Development Roadmap
+## 개발 로드맵
 
-1. Initialize the C#/.NET 8 WPF solution.
-2. Implement Windows master mute/unmute.
-3. Detect active application audio sessions.
-4. Add per-application mute/unmute toggles.
-5. Add configurable global hotkeys.
-6. Persist application bindings and settings locally.
-7. Refine the UI, validation, and release documentation.
+1. .NET 8 WPF 프로젝트와 초기 화면 구성 — 완료
+2. Windows 마스터 음소거/음소거 해제 구현
+3. 활성 애플리케이션 오디오 세션 감지
+4. 애플리케이션별 음소거 토글 구현
+5. 사용자 지정 전역 단축키 추가
+6. 단축키 바인딩과 설정 저장
+7. UI, 예외 처리, 배포 문서 정리
 
-## Author
+## 작성자
 
 **Made by 유성우**

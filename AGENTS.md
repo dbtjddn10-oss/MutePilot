@@ -187,6 +187,45 @@ The author section must contain:
 
 **Made by 유성우**
 
+## Documentation Language
+
+All human-readable GitHub documentation must be written primarily in natural Korean.
+
+This applies to:
+
+* `README.md`
+* `CHANGELOG.md`
+* `docs/devlog/*.md`
+* Pull Request descriptions
+* Issue descriptions
+* Human-readable development notes
+
+Keep technical names in English when appropriate, including Windows API names, C# identifiers, class names, method names, filenames, branch names, Git commands, and product names.
+
+The Korean writing should feel like a real personal development and learning record.
+
+Avoid:
+
+* Exaggerated achievements
+* Corporate marketing language
+* Generic AI-style summaries
+* Claiming functionality that was not actually tested
+
+Prefer documenting:
+
+* 실제로 한 작업
+* 새롭게 알게 된 내용
+* 작업 중 막힌 부분
+* 해결한 방법
+* 실제 Build/Test 결과
+* 다음 작업
+
+The author credit must always remain exactly:
+
+**Made by 유성우**
+
+Do not translate or alter this credit.
+
 ## Build and Validation Rules
 
 Before declaring a programming task complete:

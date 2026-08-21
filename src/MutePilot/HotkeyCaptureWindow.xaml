@@ -2,7 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="전역 단축키 입력"
-        Width="430" Height="270" ResizeMode="NoResize"
+        Width="460" Height="370" MinWidth="460" MinHeight="370"
+        ResizeMode="NoResize" UseLayoutRounding="True"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource WindowBackgroundBrush}"
         Foreground="{StaticResource PrimaryTextBrush}"
@@ -18,17 +19,28 @@
             <TextBlock Margin="0,8,0,0" Foreground="{StaticResource SecondaryTextBrush}"
                        Text="F1~F11 또는 Ctrl/Alt/Shift와 영문·숫자 키 조합을 사용할 수 있습니다."
                        TextWrapping="Wrap" />
+            <TextBlock Margin="0,8,0,0" FontSize="11"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="F키 단독 단축키는 실행 중인 게임에도 해당 키 입력이 함께 전달될 수 있습니다."
+                       TextWrapping="Wrap" />
+            <TextBlock Margin="0,4,0,0" FontSize="11"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="다른 프로그램과 충돌하면 Ctrl/Alt/Shift 조합을 사용해 보세요."
+                       TextWrapping="Wrap" />
         </StackPanel>
-        <Border Grid.Row="1" Margin="0,18" Padding="14"
+        <Border Grid.Row="1" Margin="0,18" Padding="20" MinHeight="126"
                 Background="{StaticResource PanelBackgroundBrush}"
                 BorderBrush="{StaticResource PanelBorderBrush}"
                 BorderThickness="1" CornerRadius="6">
-            <StackPanel VerticalAlignment="Center">
-                <TextBlock x:Name="CapturedHotkeyText" HorizontalAlignment="Center"
-                           FontSize="20" FontWeight="SemiBold" Text="키 입력 대기 중" />
-                <TextBlock x:Name="CaptureErrorText" Margin="0,8,0,0"
-                           HorizontalAlignment="Center" Foreground="#FCA5A5"
+            <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                <TextBlock x:Name="CapturedHotkeyText" MinHeight="38" Padding="4"
+                           HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                           FontSize="20" FontWeight="SemiBold"
+                           Text="키 입력 대기 중" TextAlignment="Center"
                            TextWrapping="Wrap" />
+                <TextBlock x:Name="CaptureErrorText" Margin="0,8,0,0"
+                           HorizontalAlignment="Stretch" Foreground="#FCA5A5"
+                           TextAlignment="Center" TextWrapping="Wrap" />
             </StackPanel>
         </Border>
         <StackPanel Grid.Row="2" HorizontalAlignment="Right" Orientation="Horizontal">

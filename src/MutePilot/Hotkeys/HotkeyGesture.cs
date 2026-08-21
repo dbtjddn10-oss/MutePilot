@@ -26,6 +26,10 @@ public sealed record HotkeyGesture
     public Key Key { get; init; }
 
     [JsonIgnore]
+    public bool IsStandaloneFunctionKey =>
+        Modifiers == HotkeyModifiers.None && Key >= Key.F1 && Key <= Key.F11;
+
+    [JsonIgnore]
     public string DisplayText
     {
         get

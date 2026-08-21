@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     private readonly ISettingsService _settingsService = new SettingsService();
     private AppSettings _settings = new();
     private bool _hotkeysInitialized;
+    private bool _isCapturingHotkey;
 
     public MainWindow() => InitializeComponent();
 
@@ -28,6 +29,11 @@ public partial class MainWindow : Window
             _hotkeyService.Initialize(new WindowInteropHelper(this).Handle);
             _hotkeyService.HotkeyPressed += HotkeyService_HotkeyPressed;
             _hotkeysInitialized = true;
+
+            if (!string.IsNullOrWhiteSpace(_hotkeyService.InitializationWarning))
+            {
+                warnings.Add(_hotkeyService.InitializationWarning);
+            }
 
             var loadResult = _settingsService.Load();
             _settings = loadResult.Settings;
@@ -166,7 +172,19 @@ public partial class MainWindow : Window
 
         var dialog = new HotkeyCaptureWindow(currentGesture) { Owner = this };
 
-        if (dialog.ShowDialog() == true && dialog.SelectedGesture is not null)
+        bool? dialogResult;
+
+        try
+        {
+            _isCapturingHotkey = true;
+            dialogResult = dialog.ShowDialog();
+        }
+        finally
+        {
+            _isCapturingHotkey = false;
+        }
+
+        if (dialogResult == true && dialog.SelectedGesture is not null)
         {
             ApplyHotkeyChange(createBinding(dialog.SelectedGesture));
         }
@@ -259,6 +277,11 @@ public partial class MainWindow : Window
 
     private void HotkeyService_HotkeyPressed(object? sender, HotkeyPressedEventArgs e)
     {
+        if (_isCapturingHotkey)
+        {
+            return;
+        }
+
         try
         {
             if (e.Binding.TargetType == HotkeyTargetType.MasterAudio)

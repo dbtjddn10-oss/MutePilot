@@ -54,6 +54,7 @@ public sealed class SettingsService : ISettingsService
             var json = File.ReadAllText(SettingsFilePath);
             var settings = JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions) ??
                 new AppSettings();
+            NormalizeOverlaySettings(settings);
             settings.ApplicationBindings ??= [];
             var bindingCount = settings.ApplicationBindings.Count;
             settings.ApplicationBindings = settings.ApplicationBindings
@@ -75,6 +76,22 @@ public sealed class SettingsService : ISettingsService
             return new SettingsLoadResult(
                 new AppSettings(),
                 "설정 파일을 읽을 수 없어 기본 설정으로 시작했습니다. 기존 파일은 변경하지 않았습니다.");
+        }
+    }
+
+    private static void NormalizeOverlaySettings(AppSettings settings)
+    {
+        settings.OverlayOpacity = double.IsFinite(settings.OverlayOpacity)
+            ? Math.Clamp(settings.OverlayOpacity, 0.2, 1.0)
+            : 1.0;
+
+        if (settings.OverlayLeft is not double left ||
+            settings.OverlayTop is not double top ||
+            !double.IsFinite(left) ||
+            !double.IsFinite(top))
+        {
+            settings.OverlayLeft = null;
+            settings.OverlayTop = null;
         }
     }
 

@@ -5,18 +5,43 @@ namespace MutePilot.Overlay;
 
 public sealed class OverlayService : IOverlayService
 {
+    private static readonly TimeSpan FullscreenPollInterval = TimeSpan.FromMilliseconds(400);
+
     private readonly Dispatcher _dispatcher;
+    private readonly IFullscreenStateDetector _fullscreenStateDetector;
+    private readonly DispatcherTimer _fullscreenTimer;
     private MuteOverlayWindow? _window;
     private IReadOnlyList<OverlayTargetState> _targets = [];
+    private OverlayConfiguration _configuration = new(true, 1.0, null, null);
     private volatile bool _isEnabled = true;
+    private bool _isFullscreenDisplayOnly;
     private bool _disposed;
 
-    public OverlayService(Dispatcher dispatcher)
+    public OverlayService(Dispatcher dispatcher) :
+        this(dispatcher, new FullscreenStateDetector())
     {
-        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
     }
 
+    public OverlayService(
+        Dispatcher dispatcher,
+        IFullscreenStateDetector fullscreenStateDetector)
+    {
+        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+        _fullscreenStateDetector = fullscreenStateDetector ??
+            throw new ArgumentNullException(nameof(fullscreenStateDetector));
+        _fullscreenTimer = new DispatcherTimer(
+            FullscreenPollInterval,
+            DispatcherPriority.Background,
+            FullscreenTimer_Tick,
+            dispatcher);
+        _fullscreenTimer.Start();
+    }
+
+    public event EventHandler<OverlayConfigurationChangedEventArgs>? ConfigurationChanged;
+
     public bool IsEnabled => _isEnabled;
+
+    public bool IsFullscreenDisplayOnly => _isFullscreenDisplayOnly;
 
     public void SetEnabled(bool isEnabled)
     {
@@ -26,7 +51,34 @@ public sealed class OverlayService : IOverlayService
         }
 
         _isEnabled = isEnabled;
-        RunOnDispatcher(isEnabled ? ShowCore : HideCore);
+        RunOnDispatcher(() =>
+        {
+            RefreshFullscreenState();
+
+            if (isEnabled)
+            {
+                ShowCore();
+            }
+            else
+            {
+                HideCore();
+            }
+        });
+    }
+
+    public void Configure(OverlayConfiguration configuration)
+    {
+        if (_disposed || configuration is null)
+        {
+            return;
+        }
+
+        var normalized = NormalizeConfiguration(configuration);
+        RunOnDispatcher(() =>
+        {
+            _configuration = normalized;
+            _window?.ApplyConfiguration(_configuration);
+        });
     }
 
     public void UpdateTargets(IReadOnlyList<OverlayTargetState> targets)
@@ -70,9 +122,12 @@ public sealed class OverlayService : IOverlayService
 
         _disposed = true;
         _isEnabled = false;
+        _fullscreenTimer.Stop();
+        _fullscreenTimer.Tick -= FullscreenTimer_Tick;
 
         if (_window is not null)
         {
+            _window.ConfigurationChanged -= Window_ConfigurationChanged;
             _window.Close();
             _window = null;
         }
@@ -99,15 +154,84 @@ public sealed class OverlayService : IOverlayService
             return;
         }
 
-        _window ??= new MuteOverlayWindow();
-        _window.UpdateTargets(_targets);
+        var window = _window;
+        var isNewWindow = window is null;
 
-        if (!_window.IsVisible)
+        if (isNewWindow)
         {
-            _window.Show();
+            window = new MuteOverlayWindow();
+            window.ConfigurationChanged += Window_ConfigurationChanged;
+            _window = window;
         }
 
-        _window.PositionNearPrimaryWorkAreaTopRight();
+        var activeWindow = window ?? throw new InvalidOperationException(
+            "Overlay window could not be created.");
+        activeWindow.UpdateTargets(_targets);
+
+        if (!activeWindow.IsVisible)
+        {
+            activeWindow.Show();
+        }
+
+        if (isNewWindow)
+        {
+            activeWindow.ApplyConfiguration(_configuration);
+        }
+
+        activeWindow.SetFullscreenDisplayOnly(_isFullscreenDisplayOnly);
+    }
+
+    private void FullscreenTimer_Tick(object? sender, EventArgs e) => RefreshFullscreenState();
+
+    private void RefreshFullscreenState()
+    {
+        bool nextState;
+
+        try
+        {
+            nextState = _fullscreenStateDetector.IsForegroundWindowFullscreen();
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"Fullscreen state detection failed: {exception}");
+            nextState = false;
+        }
+
+        if (_isFullscreenDisplayOnly == nextState)
+        {
+            return;
+        }
+
+        _isFullscreenDisplayOnly = nextState;
+        _window?.SetFullscreenDisplayOnly(nextState);
+    }
+
+    private void Window_ConfigurationChanged(
+        object? sender,
+        OverlayConfigurationChangedEventArgs e)
+    {
+        _configuration = NormalizeConfiguration(e.Configuration);
+        ConfigurationChanged?.Invoke(
+            this,
+            new OverlayConfigurationChangedEventArgs(_configuration));
+    }
+
+    private static OverlayConfiguration NormalizeConfiguration(OverlayConfiguration configuration)
+    {
+        var opacity = double.IsFinite(configuration.Opacity)
+            ? Math.Clamp(configuration.Opacity, 0.2, 1.0)
+            : 1.0;
+        var hasValidPosition = configuration.Left is double left &&
+                               configuration.Top is double top &&
+                               double.IsFinite(left) &&
+                               double.IsFinite(top);
+
+        return configuration with
+        {
+            Opacity = opacity,
+            Left = hasValidPosition ? configuration.Left : null,
+            Top = hasValidPosition ? configuration.Top : null
+        };
     }
 
     private void HideCore()

@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     private bool _hotkeysInitialized;
     private bool _isCapturingHotkey;
     private bool _isOverlayRefreshRunning;
+    private bool _isApplyingOverlayConfiguration;
     private bool _isClosed;
     private long _audioStateRevision;
 
@@ -32,6 +33,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _overlayService = new OverlayService(Dispatcher);
+        _overlayService.ConfigurationChanged += OverlayService_ConfigurationChanged;
         _overlayRefreshTimer = new DispatcherTimer(
             OverlayRefreshInterval,
             DispatcherPriority.Background,
@@ -58,6 +60,7 @@ public partial class MainWindow : Window
 
             var loadResult = _settingsService.Load();
             _settings = loadResult.Settings;
+            _overlayService.Configure(CreateOverlayConfiguration(_settings));
             _overlayService.SetEnabled(_settings.OverlayEnabled);
             UpdateOverlaySettingDisplay();
             RefreshOverlayHud();
@@ -102,6 +105,7 @@ public partial class MainWindow : Window
         _overlayRefreshTimer.Tick -= OverlayRefreshTimer_Tick;
         _hotkeyService.HotkeyPressed -= HotkeyService_HotkeyPressed;
         _hotkeyService.Dispose();
+        _overlayService.ConfigurationChanged -= OverlayService_ConfigurationChanged;
         _overlayService.Dispose();
         base.OnClosed(e);
     }
@@ -165,6 +169,27 @@ public partial class MainWindow : Window
             _overlayService.SetEnabled(_settings.OverlayEnabled);
             UpdateOverlaySettingDisplay();
             ShowHotkeyError("오버레이 설정을 저장하지 못했습니다.");
+        }
+    }
+
+    private void OverlayPositionResetButton_Click(object sender, RoutedEventArgs e)
+    {
+        var previousSettings = CloneSettings(_settings);
+        _settings.OverlayLeft = null;
+        _settings.OverlayTop = null;
+
+        try
+        {
+            _settingsService.Save(_settings);
+            _overlayService.Configure(CreateOverlayConfiguration(_settings));
+            HotkeyErrorText.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            _settings = previousSettings;
+            _overlayService.Configure(CreateOverlayConfiguration(_settings));
+            ShowHotkeyError("오버레이 위치를 초기화하지 못했습니다.");
         }
     }
 
@@ -534,9 +559,58 @@ public partial class MainWindow : Window
     private static AppSettings CloneSettings(AppSettings settings) => new()
     {
         OverlayEnabled = settings.OverlayEnabled,
+        OverlayLocked = settings.OverlayLocked,
+        OverlayOpacity = settings.OverlayOpacity,
+        OverlayLeft = settings.OverlayLeft,
+        OverlayTop = settings.OverlayTop,
         MasterHotkey = settings.MasterHotkey,
         ApplicationBindings = settings.ApplicationBindings.ToList()
     };
+
+    private static OverlayConfiguration CreateOverlayConfiguration(AppSettings settings) => new(
+        settings.OverlayLocked,
+        settings.OverlayOpacity,
+        settings.OverlayLeft,
+        settings.OverlayTop);
+
+    private void OverlayService_ConfigurationChanged(
+        object? sender,
+        OverlayConfigurationChangedEventArgs e)
+    {
+        if (_isApplyingOverlayConfiguration)
+        {
+            return;
+        }
+
+        var previousSettings = CloneSettings(_settings);
+        _settings.OverlayLocked = e.Configuration.IsLocked;
+        _settings.OverlayOpacity = e.Configuration.Opacity;
+        _settings.OverlayLeft = e.Configuration.Left;
+        _settings.OverlayTop = e.Configuration.Top;
+
+        try
+        {
+            _settingsService.Save(_settings);
+            HotkeyErrorText.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            _settings = previousSettings;
+            _isApplyingOverlayConfiguration = true;
+
+            try
+            {
+                _overlayService.Configure(CreateOverlayConfiguration(_settings));
+            }
+            finally
+            {
+                _isApplyingOverlayConfiguration = false;
+            }
+
+            ShowHotkeyError("오버레이 설정을 저장하지 못해 이전 값으로 되돌렸습니다.");
+        }
+    }
 
     private void UpdateOverlaySettingDisplay()
     {

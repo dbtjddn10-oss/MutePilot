@@ -21,5 +21,10 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * 애플리케이션 그룹의 session만 음소거하거나 해제하는 토글 기능 구현
 * `Applications` 목록과 수동 `새로고침` 버튼 추가
 * 실제 Windows PC에서 `suddenattack`과 Whale의 개별 음소거·해제, 앱 간 독립 제어, master audio 유지 동작을 수동 검증
+* Windows `RegisterHotKey`, `UnregisterHotKey`, `WM_HOTKEY`를 이용한 전체·앱별 전역 단축키 등록과 토글 연결
+* F1~F11 단독 키와 Ctrl/Alt/Shift를 조합한 영문·숫자 키 입력 창 추가
+* MutePilot 내부 중복과 Windows 단축키 등록 충돌을 확인하고 기존 바인딩을 보존하는 변경 처리 추가
+* 앱이 실행 중이 아니어도 `ProcessName` 기준 바인딩을 유지하고 목록에서 변경·삭제할 수 있도록 구성
+* `%LocalAppData%\MutePilot\settings.json`에 단축키를 저장하고 시작할 때 개별적으로 복원하는 기능 추가
 
-마스터 음소거와 앱별 음소거 기능은 실제 Windows PC에서 수동 검증까지 완료했습니다. 전역 단축키는 아직 구현하지 않았습니다.
+마스터 음소거와 앱별 음소거 기능은 실제 Windows PC에서 수동 검증까지 완료했습니다. 전역 단축키의 빌드와 화면, 초기화는 확인했지만 실제 게임·브라우저 포커스 상태의 동작은 아직 수동 검증하지 않았습니다.

@@ -107,6 +107,7 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * 관리자 상태 quick control은 일반 권한에서 기존 `runas` UAC 재시작을 사용하고, 관리자 권한에서는 Windows Explorer shell을 통한 일반 권한 재시작을 요청하도록 변경
 * Overlay의 lock/unlock을 `Segoe MDL2 Assets` 자물쇠 glyph와 서로 다른 색상·tooltip으로 구분하고 접기·닫기 hover 상태를 theme resource에 연결
 * 상단 관리자 quick control의 XAML 기본값과 runtime 갱신 문구를 `관리자모드 실행 ON/OFF`로 통일해 MutePilot process의 권한 상태임을 명확히 표시
+* 내부 브랜드 이미지는 `brand-icon.png`, mini-HUD는 전용 `brand-icon-small.png`를 사용하고 WPF 고품질 비율 유지 scaling을 적용
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 

@@ -13,6 +13,8 @@
         Focusable="False"
         AllowsTransparency="True"
         Background="Transparent"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
         LocationChanged="Window_LocationChanged">
     <Window.Resources>
         <Style x:Key="OverlayHeaderButtonStyle" TargetType="Button">
@@ -164,14 +166,22 @@
 
                 <Grid x:Name="MiniHudPanel" Height="21" Visibility="Collapsed">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="18" />
+                        <ColumnDefinition Width="22" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="24" />
                         <ColumnDefinition Width="21" />
                     </Grid.ColumnDefinitions>
-                    <Image x:Name="MiniBrandImage" Width="18" Height="18"
-                           VerticalAlignment="Center" Stretch="Uniform"
-                           SnapsToDevicePixels="True" />
+                    <Grid Width="22" Height="21">
+                        <Image x:Name="MiniBrandImage" Width="20" Height="20"
+                               VerticalAlignment="Center" Stretch="Uniform"
+                               SnapsToDevicePixels="True" UseLayoutRounding="True"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
+                        <TextBlock x:Name="MiniBrandFallback"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontSize="13" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   Text="M" Visibility="Collapsed" />
+                    </Grid>
                     <Grid Grid.Column="1" Margin="1,0,5,0">
                         <TextBlock x:Name="MiniStatusText" VerticalAlignment="Center"
                                    FontSize="10" Foreground="#EEF1F5"

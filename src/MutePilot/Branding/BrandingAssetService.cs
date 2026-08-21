@@ -12,10 +12,14 @@ public static class BrandingAssetService
         new("Assets/app-icon.ico", UriKind.Relative);
     private static readonly Uri BrandIconUri =
         new("Assets/brand-icon.png", UriKind.Relative);
+    private static readonly Uri CompactBrandIconUri =
+        new("Assets/brand-icon-small.png", UriKind.Relative);
 
     public static ImageSource? TryLoadWindowIcon() => TryLoadImage(AppIconUri);
 
     public static ImageSource? TryLoadBrandIcon() => TryLoadImage(BrandIconUri);
+
+    public static ImageSource? TryLoadCompactBrandIcon() => TryLoadImage(CompactBrandIconUri);
 
     public static DrawingIcon? TryCreateTrayIcon()
     {

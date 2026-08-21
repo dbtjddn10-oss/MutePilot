@@ -34,8 +34,14 @@ public partial class MuteOverlayWindow : Window
     public MuteOverlayWindow()
     {
         InitializeComponent();
-        MiniBrandImage.Source = BrandingAssetService.TryLoadBrandIcon() ??
-            BrandingAssetService.TryLoadWindowIcon();
+        var compactBrandIcon = BrandingAssetService.TryLoadCompactBrandIcon();
+        MiniBrandImage.Source = compactBrandIcon;
+        MiniBrandImage.Visibility = compactBrandIcon is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        MiniBrandFallback.Visibility = compactBrandIcon is null
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         _configurationCommitTimer = new DispatcherTimer(
             TimeSpan.FromMilliseconds(350),
             DispatcherPriority.Background,

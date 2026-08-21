@@ -59,14 +59,14 @@ public partial class MainWindow : Window
         var appIcon = BrandingAssetService.TryLoadWindowIcon();
         var brandIcon = BrandingAssetService.TryLoadBrandIcon();
         Icon = appIcon;
-        SidebarBrandImage.Source = brandIcon ?? appIcon;
-        SidebarBrandContainer.Visibility = SidebarBrandImage.Source is null
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-        BrandIconImage.Source = brandIcon ?? appIcon;
-        BrandIconContainer.Visibility = BrandIconImage.Source is null
-            ? Visibility.Collapsed
-            : Visibility.Visible;
+        SidebarBrandImage.Source = brandIcon;
+        SidebarBrandImage.Visibility = brandIcon is null ? Visibility.Collapsed : Visibility.Visible;
+        SidebarBrandFallback.Visibility = brandIcon is null ? Visibility.Visible : Visibility.Collapsed;
+        SidebarBrandContainer.Visibility = Visibility.Visible;
+        BrandIconImage.Source = brandIcon;
+        BrandIconImage.Visibility = brandIcon is null ? Visibility.Collapsed : Visibility.Visible;
+        BrandIconFallback.Visibility = brandIcon is null ? Visibility.Visible : Visibility.Collapsed;
+        BrandIconContainer.Visibility = Visibility.Visible;
         FitWindowToWorkArea();
         _volumePresetToggleService = new VolumePresetToggleService(_audioService);
         _overlayService = new OverlayService(Dispatcher);

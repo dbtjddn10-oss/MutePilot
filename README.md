@@ -20,7 +20,7 @@ Application Audio에는 현재 audio session의 process에서 실행 파일 경�
 
 Master와 각 앱의 볼륨 프리셋은 slider뿐 아니라 0~100 정수 입력으로도 바꿀 수 있습니다. 숫자를 입력하면 slider와 전환 버튼이 함께 갱신되고, slider를 움직이면 숫자 칸도 같은 값으로 바뀝니다. 공백은 제거해 처리하며 빈 값, 소수, 음수, 100보다 큰 값은 기존 설정을 유지한 채 한국어 오류를 표시합니다. Enter와 기존 전환 버튼은 같은 검증 경로를 사용합니다.
 
-최종 `app-icon.ico`와 `brand-icon.png`를 `src/MutePilot/Assets/`에 적용했습니다. 앱 아이콘은 executable·MainWindow·Windows taskbar·tray에 사용하고, 브랜드 이미지는 Sidebar·About·mini-HUD에 표시합니다. 리소스를 실제로 읽지 못한 경우에만 Windows 기본 아이콘으로 돌아갑니다.
+최종 `app-icon.ico`, `brand-icon.png`, `brand-icon-small.png`를 `src/MutePilot/Assets/`에 적용했습니다. 앱 아이콘은 executable·MainWindow·Windows taskbar·tray에만 사용합니다. 일반 브랜드 PNG는 Sidebar·About에, compact PNG는 mini-HUD에 표시하며 각 PNG를 읽지 못하면 단순 `M` 표기로 돌아갑니다.
 
 About에는 일반 저자 표기 `Made by 유성우`와 별도의 `후원하기` 버튼이 있습니다. 후원 창은 Toss에서 생성한 `toss-support-qr.jpg`를 크게 표시하고, `계좌번호 복사` 뒤에는 창 안에서 성공 여부를 알려 줍니다. Toss QR 원본이 없거나 읽히지 않을 때만 국민은행 계좌정보를 담은 로컬 QR로 돌아갑니다. 실제 휴대폰에서 표시되는 Toss 화면은 이번 작업에서 확인하지 않았습니다.
 

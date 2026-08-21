@@ -5,7 +5,8 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}"
-        FontFamily="Segoe UI" Loaded="MainWindow_Loaded">
+        FontFamily="Segoe UI" Loaded="MainWindow_Loaded"
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="210" />
@@ -22,10 +23,19 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <StackPanel>
-                    <Border x:Name="SidebarBrandContainer" Width="54" Height="54"
+                    <Border x:Name="SidebarBrandContainer" Width="46" Height="46"
                             HorizontalAlignment="Left" Background="Transparent" CornerRadius="12">
-                        <Image x:Name="SidebarBrandImage" Width="54" Height="54"
-                               Stretch="Uniform" SnapsToDevicePixels="True" />
+                        <Grid>
+                            <Image x:Name="SidebarBrandImage" Width="42" Height="42"
+                                   Stretch="Uniform" SnapsToDevicePixels="True"
+                                   UseLayoutRounding="True"
+                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                            <TextBlock x:Name="SidebarBrandFallback"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       FontSize="24" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       Text="M" Visibility="Collapsed" />
+                        </Grid>
                     </Border>
                     <TextBlock Margin="0,10,0,0" FontSize="21" FontWeight="Bold" Text="MutePilot" />
                     <TextBlock Margin="0,3,0,0" FontSize="10.5"
@@ -504,7 +514,17 @@
                                 <Border x:Name="BrandIconContainer" Width="46" Height="46" Margin="0,0,13,0"
                                         VerticalAlignment="Center" Background="{DynamicResource AccentSoftBrush}"
                                         CornerRadius="10" Visibility="Collapsed">
-                                    <Image x:Name="BrandIconImage" Width="38" Height="38" Stretch="Uniform" />
+                                    <Grid>
+                                        <Image x:Name="BrandIconImage" Width="40" Height="40"
+                                               Stretch="Uniform" SnapsToDevicePixels="True"
+                                               UseLayoutRounding="True"
+                                               RenderOptions.BitmapScalingMode="HighQuality" />
+                                        <TextBlock x:Name="BrandIconFallback"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   FontSize="22" FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   Text="M" Visibility="Collapsed" />
+                                    </Grid>
                                 </Border>
                                 <StackPanel Grid.Column="1">
                                     <TextBlock FontSize="10.5" FontWeight="SemiBold"

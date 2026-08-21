@@ -37,6 +37,11 @@
     <Resource Include="Assets\brand-icon.png" />
   </ItemGroup>
 
+  <ItemGroup Condition="Exists('Assets\brand-icon-small.png')">
+    <None Remove="Assets\brand-icon-small.png" />
+    <Resource Include="Assets\brand-icon-small.png" />
+  </ItemGroup>
+
   <ItemGroup Condition="Exists('Assets\toss-support-qr.jpg')">
     <None Remove="Assets\toss-support-qr.jpg" />
     <Resource Include="Assets\toss-support-qr.jpg" />

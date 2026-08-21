@@ -48,9 +48,9 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 
 트레이 메뉴의 `MutePilot 열기` 또는 아이콘 double-click으로 같은 메인 창을 다시 열 수 있습니다. `오버레이 켜기`/`오버레이 끄기`는 기존 `overlayEnabled` 설정을 저장하면서 HUD와 메인 화면의 ON/OFF 표시를 함께 갱신합니다. 프로그램을 완전히 끝내려면 트레이 메뉴의 `종료`를 사용해야 합니다. 처음 X 버튼을 누를 때만 트레이에서 계속 실행 중이라는 짧은 알림을 요청합니다.
 
-실제 Windows UI에서 X 이후 프로세스와 HUD가 남는 것, 메뉴와 double-click 복원, 반복 숨김·복원 중 단일 tray icon 유지, 오버레이 설정 동기화, 명시적 종료와 재실행을 확인했습니다. 트레이 상태에서 SuddenAttack 단독 F8을 사용하는 실제 게임 테스트는 아직 하지 않았습니다.
+실제 PC에서 X를 눌렀을 때 메인 창만 숨고 tray icon과 persistent HUD가 남는 것을 확인했습니다. 이 상태에서도 SuddenAttack 단독 F8 음소거·해제와 HUD 상태 갱신이 계속 동작했습니다. Tray icon double-click은 기존 메인 창을 복원했고, 반복 숨김·복원도 정상 동작했습니다. 트레이의 `종료`를 선택하면 프로세스와 HUD, tray icon이 모두 종료됐습니다.
 
-**시스템 트레이 백그라운드 동작: 구현 및 Windows UI 검증 완료 / 게임 단축키 수동 검증 필요**
+**시스템 트레이 백그라운드 동작: 구현 및 실제 PC·SuddenAttack 수동 검증 완료**
 
 ## 앞으로 구현할 기능
 
@@ -63,7 +63,7 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 * 선택형 음소거 상태 오버레이 — 고정형 compact HUD 구현 및 SuddenAttack 수동 검증 완료
 * 오버레이 위치 이동·잠금·20~100% 투명도 설정 — 구현 및 실제 PC 수동 검증 완료
 * fullscreen foreground에서 자동 display-only·click-through 전환 — 구현 및 SuddenAttack 수동 검증 완료
-* X 버튼으로 메인 창을 숨기고 시스템 트레이에서 계속 실행 — 구현 및 Windows UI 검증 완료
+* X 버튼으로 메인 창을 숨기고 시스템 트레이에서 계속 실행 — 구현 및 실제 PC 수동 검증 완료
 
 오디오 볼륨 조절 기능은 현재 범위에 포함하지 않습니다.
 
@@ -93,7 +93,7 @@ Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능�
 7. 실제 게임·브라우저 환경에서 단축키 수동 검증 — 완료, 관리자 게임 권한 제한 확인
 8. 선택형 음소거 상태 오버레이 구현 — 고정형 HUD 개선 및 SuddenAttack 수동 검증 완료
 9. 오버레이 위치·잠금·투명도 설정과 fullscreen display-only 처리 — 구현 및 SuddenAttack 수동 검증 완료
-10. 시스템 트레이 백그라운드 동작 — 구현 및 Windows UI 검증 완료
+10. 시스템 트레이 백그라운드 동작 — 구현 및 SuddenAttack 수동 검증 완료
 11. Windows 시작 시 자동 실행 및 관리자 권한 실행 방식 정리
 
 ## 작성자

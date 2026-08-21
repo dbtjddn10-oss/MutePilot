@@ -58,4 +58,4 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 
 위치 이동과 drag 완료 좌표 전달, 잠금 시 이동 차단, 20%·100% 투명도, 화면 밖 좌표 복구, 재시작 위치 복원, 위치 초기화, fullscreen display-only 자동 전환과 복귀를 검증했습니다. 실제 PC에서도 위치 이동, 잠금, 투명도, 위치 초기화와 각 설정의 재시작 복원을 확인했습니다. SuddenAttack foreground/fullscreen에서는 HUD가 자동으로 display-only·click-through 상태가 되어 조작되지 않았고, Alt+Tab 뒤에는 저장된 잠금 상태에 맞춰 설정 기능이 복원됐습니다. 기존 F8 음소거와 Overlay ON/OFF도 그대로 동작했습니다.
 
-시스템 트레이 기능은 실제 Windows UI에서 main window 숨김 뒤 process와 overlay 유지, 메뉴·double-click 복원, 반복 hide/show 중 단일 icon 유지, 오버레이 설정과 메인 UI 동기화, 명시적 종료 시 모든 window와 icon 제거, 정상 재실행을 확인했습니다. 트레이 상태의 SuddenAttack 단독 F8은 아직 실제 게임에서 수동 검증하지 않았습니다.
+시스템 트레이 기능은 실제 PC에서 X를 누른 뒤 main window만 숨고 process, tray icon, persistent HUD가 남는 것을 확인했습니다. 숨겨진 상태에서도 SuddenAttack 단독 F8 음소거·해제와 HUD 갱신이 계속 동작했습니다. Icon double-click 복원, 반복 hide/show, 트레이 `종료` 시 process·overlay·icon 정리도 정상 동작했습니다.

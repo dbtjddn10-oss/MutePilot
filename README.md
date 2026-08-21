@@ -10,7 +10,7 @@ MutePilot은 사용자가 지정한 전역 단축키로 Windows의 마스터 오
 
 ## 현재 개발 상태
 
-현재는 **v0.3 기능 개발 단계**입니다.
+현재는 **v0.4 기능 개발 단계**입니다.
 
 .NET 8 WPF 앱에서 Windows 기본 출력 장치의 마스터 음소거 상태를 읽고, 버튼으로 음소거와 음소거 해제를 전환하는 기능을 구현했습니다. 실제 Windows PC에서 음소거, 음소거 해제, UI 상태 반영이 정상 동작하는 것을 수동으로 확인했습니다.
 
@@ -52,6 +52,20 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 
 **시스템 트레이 백그라운드 동작: 구현 및 실제 PC·SuddenAttack 수동 검증 완료**
 
+메인 화면의 `Windows 시작` 영역에서 현재 권한을 `관리자 권한` 또는 `일반 권한`으로 확인하고, 필요할 때 `관리자 권한으로 다시 시작`을 선택할 수 있습니다. 재실행과 자동 시작 작업 변경은 Windows의 정상 `runas` UAC 흐름을 사용하며 UAC를 우회하거나 관리자 자격 증명을 저장하지 않습니다. 이미 관리자 권한이면 재실행 버튼은 비활성화됩니다.
+
+`Windows 시작 시 실행`을 ON으로 바꾸면 시작프로그램 폴더나 `HKCU Run` 대신 현재 사용자 전용 Task Scheduler 작업 `MutePilot Startup`을 등록합니다. 이 작업은 현재 사용자가 로그인할 때 `Highest` run level과 `InteractiveToken`으로 현재 MutePilot 실행 파일에 `--background`를 전달합니다. SYSTEM 계정으로 실행하지 않습니다. OFF로 바꾸면 같은 작업을 제거하며, 생성·삭제가 실패하거나 UAC가 취소되면 실제 작업 상태를 다시 읽어 UI에 반영합니다.
+
+`--background` 실행은 메인 창을 띄우지 않지만 tray icon, hotkey, 단독 F키 polling, audio service와 저장된 overlay 설정을 정상 초기화합니다. 사용자는 나중에 tray icon으로 같은 `MainWindow`를 열 수 있습니다. 사용자 SID와 Windows session ID가 포함된 named Mutex로 중복 실행을 막아 두 번째 background 실행은 조용히 끝나고, 두 번째 일반 실행은 이미 실행 중이라는 안내 후 종료됩니다.
+
+관리자 재실행에서는 새 프로세스가 `--elevated-restart` handoff token으로 기존 Mutex가 풀리기를 기다립니다. UAC 승인이 끝나 새 프로세스 시작에 성공한 경우에만 기존 인스턴스를 정상 종료하므로, UAC를 취소하면 기존 MutePilot과 단일 실행 보호가 그대로 남습니다.
+
+개발 중 자동 시작을 켜면 현재 `bin/Debug` 또는 `bin/Release` 실행 파일 경로가 그대로 등록됩니다. 빌드 위치를 옮기거나 파일을 지우면 작업이 유효하지 않을 수 있으므로 OFF/ON으로 다시 등록해야 합니다. 최종 배포 단계에서는 고정된 설치 경로를 마련할 예정입니다.
+
+일반 GUI, 권한 표시, `--background`, overlay OFF/ON 복원, tray 복원, normal/background 중복 실행 차단과 Mutex handoff는 실제 Windows에서 확인했습니다. 현재 환경에서는 highest task 생성이 UAC 승인을 요구해 실제 task 생성·삭제, Windows 재로그인 자동 실행, elevated 재실행, 자동 시작된 관리자 인스턴스의 SuddenAttack F8은 아직 수동 검증하지 않았습니다. 테스트 뒤 `MutePilot Startup` 작업은 없는 OFF 상태입니다.
+
+**Windows 자동 시작·관리자 권한·단일 실행: 구현 완료 / UAC 및 실제 로그인 수동 검증 필요**
+
 ## 앞으로 구현할 기능
 
 * Windows 마스터 음소거/음소거 해제 — 구현 및 실제 동작 수동 검증 완료
@@ -64,6 +78,9 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 * 오버레이 위치 이동·잠금·20~100% 투명도 설정 — 구현 및 실제 PC 수동 검증 완료
 * fullscreen foreground에서 자동 display-only·click-through 전환 — 구현 및 SuddenAttack 수동 검증 완료
 * X 버튼으로 메인 창을 숨기고 시스템 트레이에서 계속 실행 — 구현 및 실제 PC 수동 검증 완료
+* Task Scheduler 기반 Windows 자동 시작과 `--background` 실행 — 구현 완료, 실제 로그인 수동 검증 필요
+* 관리자 권한 상태 표시와 명시적 관리자 재실행 — 구현 완료, UAC 수동 검증 필요
+* 사용자 session별 단일 실행 보호 — 구현 및 중복 실행 검증 완료
 
 오디오 볼륨 조절 기능은 현재 범위에 포함하지 않습니다.
 
@@ -77,6 +94,9 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 * Windows `RegisterHotKey`, `UnregisterHotKey`, `WM_HOTKEY`
 * Windows `GetAsyncKeyState` 기반 단독 F키 polling
 * `System.Windows.Forms.NotifyIcon` 기반 시스템 트레이 메뉴
+* Windows Task Scheduler COM API와 `runas` UAC 실행
+* `WindowsIdentity`, `WindowsPrincipal` 기반 관리자 권한 확인
+* 사용자 SID·session 기반 named Mutex 단일 실행 보호
 * 포커스를 받지 않는 별도 WPF 상태 오버레이
 * `%LocalAppData%`의 JSON 설정 저장
 
@@ -94,7 +114,8 @@ Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능�
 8. 선택형 음소거 상태 오버레이 구현 — 고정형 HUD 개선 및 SuddenAttack 수동 검증 완료
 9. 오버레이 위치·잠금·투명도 설정과 fullscreen display-only 처리 — 구현 및 SuddenAttack 수동 검증 완료
 10. 시스템 트레이 백그라운드 동작 — 구현 및 SuddenAttack 수동 검증 완료
-11. Windows 시작 시 자동 실행 및 관리자 권한 실행 방식 정리
+11. Windows 시작 시 자동 실행, 관리자 권한 UX, background 시작, 단일 실행 보호 — 구현 완료, UAC·로그인 수동 검증 필요
+12. 최종 UI/아이콘 정리와 Release 배포 구조 준비
 
 ## 작성자
 

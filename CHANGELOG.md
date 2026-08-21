@@ -51,6 +51,13 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * `ShutdownMode="OnExplicitShutdown"`과 실제 종료 flag를 사용해 트레이 `종료`에서만 hotkey, polling, fullscreen monitor, overlay, tray icon을 정리하도록 구성
 * 트레이 메뉴와 icon double-click에서 새 창을 만들지 않고 기존 `MainWindow`를 복원하도록 연결
 * 트레이 오버레이 메뉴가 기존 `overlayEnabled`를 저장하고 HUD와 메인 화면 ON/OFF 표시를 함께 갱신하도록 구성
+* 메인 화면에 실제 Task Scheduler 상태와 현재 관리자 권한 여부를 보여 주는 compact `Windows 시작` 영역 추가
+* 현재 사용자 로그인 trigger, `Highest` run level, `InteractiveToken`, `--background` action을 사용하는 `MutePilot Startup` 작업 등록·제거 기능 추가
+* Task Scheduler 작업 변경과 관리자 재실행에 Windows `runas` UAC 흐름을 사용하고 취소·실패 시 기존 앱과 실제 상태를 유지하도록 처리
+* `--background`에서 메인 창 없이 tray, hotkey, 단독 F키 polling, audio, overlay service를 초기화하도록 앱 시작 경로 변경
+* `WindowsIdentity`와 `WindowsPrincipal`로 현재 process의 관리자 권한 상태를 표시하고 같은 실행 파일을 관리자 권한으로 다시 시작하는 기능 추가
+* 사용자 SID와 session ID 기반 named Mutex로 중복 process, tray icon, hotkey 등록을 막는 단일 실행 보호 추가
+* 관리자 재실행 process가 기존 Mutex 해제를 기다리는 `--elevated-restart` handoff 경로 추가
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 
@@ -59,3 +66,5 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 위치 이동과 drag 완료 좌표 전달, 잠금 시 이동 차단, 20%·100% 투명도, 화면 밖 좌표 복구, 재시작 위치 복원, 위치 초기화, fullscreen display-only 자동 전환과 복귀를 검증했습니다. 실제 PC에서도 위치 이동, 잠금, 투명도, 위치 초기화와 각 설정의 재시작 복원을 확인했습니다. SuddenAttack foreground/fullscreen에서는 HUD가 자동으로 display-only·click-through 상태가 되어 조작되지 않았고, Alt+Tab 뒤에는 저장된 잠금 상태에 맞춰 설정 기능이 복원됐습니다. 기존 F8 음소거와 Overlay ON/OFF도 그대로 동작했습니다.
 
 시스템 트레이 기능은 실제 PC에서 X를 누른 뒤 main window만 숨고 process, tray icon, persistent HUD가 남는 것을 확인했습니다. 숨겨진 상태에서도 SuddenAttack 단독 F8 음소거·해제와 HUD 갱신이 계속 동작했습니다. Icon double-click 복원, 반복 hide/show, 트레이 `종료` 시 process·overlay·icon 정리도 정상 동작했습니다.
+
+일반 GUI의 startup UI와 일반 권한 표시, 실제 task OFF 조회, `--background` 창 숨김, overlay OFF/ON 복원, normal/background 중복 실행 종료, Mutex handoff 뒤 단일 process·tray 유지를 검증했습니다. 현재 일반 권한 환경의 `Highest` task 생성 시도는 Windows가 access denied로 차단했고 작업은 생성되지 않았습니다. 실제 UAC 승인에 따른 task 생성·삭제, Windows 로그인 자동 실행과 elevated 재실행은 아직 수동 검증하지 않았습니다.

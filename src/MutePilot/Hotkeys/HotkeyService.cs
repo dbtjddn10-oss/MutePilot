@@ -18,7 +18,7 @@ public sealed class HotkeyService : IHotkeyService
     private const int FirstHotkeyId = 0x4000;
 
     private readonly object _syncRoot = new();
-    private readonly Dictionary<string, HotkeyRegistration> _registrationsByTarget =
+    private readonly Dictionary<string, HotkeyRegistration> _registrationsByBinding =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<int, HotkeyRegistration> _registrationsById = [];
     private readonly Dictionary<int, HotkeyRegistration> _standaloneRegistrationsByVirtualKey = [];
@@ -88,10 +88,10 @@ public sealed class HotkeyService : IHotkeyService
 
         lock (_syncRoot)
         {
-            var duplicate = _registrationsByTarget.Values.FirstOrDefault(registration =>
+            var duplicate = _registrationsByBinding.Values.FirstOrDefault(registration =>
                 !string.Equals(
-                    registration.Binding.TargetId,
-                    binding.TargetId,
+                    registration.Binding.BindingId,
+                    binding.BindingId,
                     StringComparison.OrdinalIgnoreCase) &&
                 registration.Binding.Gesture == binding.Gesture);
 
@@ -101,7 +101,7 @@ public sealed class HotkeyService : IHotkeyService
                 return false;
             }
 
-            _registrationsByTarget.TryGetValue(binding.TargetId, out var previousRegistration);
+            _registrationsByBinding.TryGetValue(binding.BindingId, out var previousRegistration);
 
             if (previousRegistration?.Binding.Gesture == binding.Gesture)
             {
@@ -122,13 +122,13 @@ public sealed class HotkeyService : IHotkeyService
         }
     }
 
-    public bool TryUnregister(string targetId, out string errorMessage)
+    public bool TryUnregister(string bindingId, out string errorMessage)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         lock (_syncRoot)
         {
-            if (!_registrationsByTarget.TryGetValue(targetId, out var registration))
+            if (!_registrationsByBinding.TryGetValue(bindingId, out var registration))
             {
                 errorMessage = string.Empty;
                 return true;
@@ -186,7 +186,7 @@ public sealed class HotkeyService : IHotkeyService
                 }
             }
 
-            _registrationsByTarget.Clear();
+            _registrationsByBinding.Clear();
             _registrationsById.Clear();
             _standaloneRegistrationsByVirtualKey.Clear();
             _pressedStandaloneKeys.Clear();
@@ -227,7 +227,7 @@ public sealed class HotkeyService : IHotkeyService
 
         var virtualKey = KeyInterop.VirtualKeyFromKey(binding.Gesture.Key);
         var registration = new HotkeyRegistration(null, binding);
-        _registrationsByTarget[binding.TargetId] = registration;
+        _registrationsByBinding[binding.BindingId] = registration;
         _standaloneRegistrationsByVirtualKey[virtualKey] = registration;
 
         if (IsKeyDown(virtualKey))
@@ -275,7 +275,7 @@ public sealed class HotkeyService : IHotkeyService
         }
 
         var registration = new HotkeyRegistration(newId, binding);
-        _registrationsByTarget[binding.TargetId] = registration;
+        _registrationsByBinding[binding.BindingId] = registration;
         _registrationsById[newId] = registration;
         errorMessage = string.Empty;
         return true;
@@ -286,7 +286,7 @@ public sealed class HotkeyService : IHotkeyService
         HotkeyBinding binding)
     {
         var updatedRegistration = previousRegistration with { Binding = binding };
-        _registrationsByTarget[binding.TargetId] = updatedRegistration;
+        _registrationsByBinding[binding.BindingId] = updatedRegistration;
 
         if (updatedRegistration.NativeId is int nativeId)
         {
@@ -301,7 +301,7 @@ public sealed class HotkeyService : IHotkeyService
 
     private void RemoveRegistrationMaps(HotkeyRegistration registration)
     {
-        _registrationsByTarget.Remove(registration.Binding.TargetId);
+        _registrationsByBinding.Remove(registration.Binding.BindingId);
 
         if (registration.NativeId is int nativeId)
         {
@@ -406,7 +406,7 @@ public sealed class HotkeyService : IHotkeyService
         lock (_syncRoot)
         {
             return !_disposed &&
-                _registrationsByTarget.TryGetValue(binding.TargetId, out var registration) &&
+                _registrationsByBinding.TryGetValue(binding.BindingId, out var registration) &&
                 registration.Binding == binding;
         }
     }

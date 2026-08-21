@@ -6,4 +6,6 @@ public sealed record ApplicationAudioSession(
     IReadOnlyList<int> ProcessIds,
     bool IsMuted,
     bool HasMixedMuteState,
+    int VolumePercent,
+    bool HasMixedVolume,
     int SessionCount);

@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     private AppSettings _settings = new();
     private IReadOnlyList<ApplicationAudioSession> _activeApplicationSessions = [];
     private bool? _masterIsMuted;
+    private int? _masterVolumePercent;
     private bool _hotkeysInitialized;
     private bool _isCapturingHotkey;
     private bool _isOverlayRefreshRunning;
@@ -36,6 +37,8 @@ public partial class MainWindow : Window
     private bool _isClosed;
     private bool _isRealExitRequested;
     private bool _servicesStarted;
+    private bool _settingsLoaded;
+    private bool _isRefreshingApplicationItems;
     private StartupStatus _startupStatus = new(StartupTaskState.Disabled);
     private long _audioStateRevision;
 
@@ -90,6 +93,7 @@ public partial class MainWindow : Window
             _overlayService.Configure(CreateOverlayConfiguration(_settings));
             _overlayService.SetEnabled(_settings.OverlayEnabled);
             UpdateOverlaySettingDisplay();
+            UpdateMasterVolumeSettingDisplay();
             RefreshOverlayHud();
 
             if (!string.IsNullOrWhiteSpace(loadResult.WarningMessage))
@@ -121,6 +125,7 @@ public partial class MainWindow : Window
             warnings.Add("전역 단축키 기능을 시작하지 못했습니다. 오디오 버튼은 계속 사용할 수 있습니다.");
         }
 
+        _settingsLoaded = true;
         ShowHotkeyWarnings(warnings);
         UpdateMasterHotkeyDisplay();
         RefreshStartupStatus();
@@ -165,8 +170,8 @@ public partial class MainWindow : Window
 
         try
         {
-            var isMuted = _audioService.ToggleMasterMuteState();
-            UpdateMasterAudioState(isMuted);
+            _audioService.ToggleMasterMuteState();
+            RefreshMasterAudioState();
         }
         catch (Exception exception)
         {
@@ -179,10 +184,54 @@ public partial class MainWindow : Window
     }
 
     private void MasterHotkeyButton_Click(object sender, RoutedEventArgs e) =>
-        ConfigureHotkey(_settings.MasterHotkey, HotkeyBinding.ForMasterAudio);
+        ConfigureHotkey(
+            _settings.MasterHotkey,
+            HotkeyBinding.ForMasterMute,
+            "Master Audio · 음소거 단축키 설정");
 
     private void MasterHotkeyRemoveButton_Click(object sender, RoutedEventArgs e) =>
-        RemoveHotkey(HotkeyBinding.MasterTargetId);
+        RemoveHotkey(HotkeyBinding.MasterMuteBindingId);
+
+    private void MasterVolumeHotkeyButton_Click(object sender, RoutedEventArgs e) =>
+        ConfigureHotkey(
+            _settings.MasterVolumeHotkey,
+            HotkeyBinding.ForMasterVolume,
+            "Master Audio · 볼륨 단축키 설정");
+
+    private void MasterVolumeHotkeyRemoveButton_Click(object sender, RoutedEventArgs e) =>
+        RemoveHotkey(HotkeyBinding.MasterVolumeBindingId);
+
+    private void MasterVolumeSlider_ValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_settingsLoaded)
+        {
+            return;
+        }
+
+        SaveMasterVolumePreset((int)Math.Round(e.NewValue));
+    }
+
+    private void MasterVolumeApplyButton_Click(object sender, RoutedEventArgs e)
+    {
+        MasterVolumeApplyButton.IsEnabled = false;
+        AudioErrorText.Visibility = Visibility.Collapsed;
+
+        try
+        {
+            _audioService.SetMasterVolumePercent(_settings.MasterVolumePercent);
+            RefreshMasterAudioState();
+        }
+        catch (Exception exception)
+        {
+            ShowAudioError(exception);
+        }
+        finally
+        {
+            MasterVolumeApplyButton.IsEnabled = true;
+        }
+    }
 
     private void OverlayToggleButton_Click(object sender, RoutedEventArgs e) =>
         SetOverlayEnabled(!_settings.OverlayEnabled);
@@ -231,7 +280,7 @@ public partial class MainWindow : Window
         if (result.Outcome != StartupChangeOutcome.Succeeded)
         {
             StartupErrorText.Text = result.Message ??
-                "Windows 시작 설정을 변경하지 못했습니다.";
+                "Windows 자동 실행 설정을 변경하지 못했습니다.";
             StartupErrorText.Visibility = Visibility.Visible;
         }
     }
@@ -254,7 +303,7 @@ public partial class MainWindow : Window
         }
 
         StartupErrorText.Text = result.Message ??
-            "관리자 권한으로 다시 시작하지 못했습니다.";
+            "MutePilot을 관리자 권한으로 재시작하지 못했습니다.";
         StartupErrorText.Visibility = Visibility.Visible;
     }
 
@@ -375,7 +424,8 @@ public partial class MainWindow : Window
         {
             ConfigureHotkey(
                 FindApplicationSetting(processName)?.Hotkey,
-                gesture => HotkeyBinding.ForApplication(processName, gesture));
+                gesture => HotkeyBinding.ForApplicationMute(processName, gesture),
+                $"{processName} · 음소거 단축키 설정");
         }
     }
 
@@ -383,13 +433,78 @@ public partial class MainWindow : Window
     {
         if (sender is Button { Tag: string processName })
         {
-            RemoveHotkey(HotkeyBinding.GetApplicationTargetId(processName));
+            RemoveHotkey(HotkeyBinding.GetApplicationMuteBindingId(processName));
+        }
+    }
+
+    private void ApplicationVolumeHotkeyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string processName })
+        {
+            ConfigureHotkey(
+                FindApplicationSetting(processName)?.VolumeHotkey,
+                gesture => HotkeyBinding.ForApplicationVolume(processName, gesture),
+                $"{processName} · 볼륨 단축키 설정");
+        }
+    }
+
+    private void ApplicationVolumeHotkeyRemoveButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string processName })
+        {
+            RemoveHotkey(HotkeyBinding.GetApplicationVolumeBindingId(processName));
+        }
+    }
+
+    private void ApplicationVolumeSlider_ValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_settingsLoaded || _isRefreshingApplicationItems ||
+            sender is not Slider { Tag: string processName } slider ||
+            (!slider.IsMouseCaptureWithin && !slider.IsKeyboardFocused))
+        {
+            return;
+        }
+
+        SaveApplicationVolumePreset(processName, (int)Math.Round(e.NewValue));
+    }
+
+    private void ApplicationVolumeApplyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string processName } button)
+        {
+            return;
+        }
+
+        var setting = FindApplicationSetting(processName) ??
+            new ApplicationHotkeySetting(processName);
+
+        button.IsEnabled = false;
+        ApplicationErrorText.Visibility = Visibility.Collapsed;
+
+        try
+        {
+            _audioService.SetApplicationVolumePercent(processName, setting.VolumePercent);
+            RefreshApplicationSessions();
+        }
+        catch (Exception exception)
+        {
+            RefreshApplicationSessions();
+            ShowApplicationError(
+                $"{processName}의 볼륨 프리셋을 적용하지 못했습니다. 앱이 실행 중인지 확인해 주세요.",
+                exception);
+        }
+        finally
+        {
+            button.IsEnabled = true;
         }
     }
 
     private void ConfigureHotkey(
         HotkeyGesture? currentGesture,
-        Func<HotkeyGesture, HotkeyBinding> createBinding)
+        Func<HotkeyGesture, HotkeyBinding> createBinding,
+        string contextText)
     {
         if (!_hotkeysInitialized)
         {
@@ -397,7 +512,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var dialog = new HotkeyCaptureWindow(currentGesture) { Owner = this };
+        var dialog = new HotkeyCaptureWindow(currentGesture, contextText) { Owner = this };
 
         bool? dialogResult;
 
@@ -419,7 +534,7 @@ public partial class MainWindow : Window
 
     private void ApplyHotkeyChange(HotkeyBinding newBinding)
     {
-        var previousBinding = FindConfiguredBinding(newBinding.TargetId);
+        var previousBinding = FindConfiguredBinding(newBinding.BindingId);
 
         if (!_hotkeyService.TryRegisterOrReplace(newBinding, out var errorMessage))
         {
@@ -439,7 +554,7 @@ public partial class MainWindow : Window
         {
             Debug.WriteLine(exception);
             _settings = previousSettings;
-            RollBackRegistration(newBinding.TargetId, previousBinding);
+            RollBackRegistration(newBinding.BindingId, previousBinding);
             ShowHotkeyError("설정 파일을 저장하지 못해 단축키 변경을 취소했습니다.");
         }
 
@@ -447,23 +562,23 @@ public partial class MainWindow : Window
         RefreshApplicationSessions();
     }
 
-    private void RemoveHotkey(string targetId)
+    private void RemoveHotkey(string bindingId)
     {
-        var previousBinding = FindConfiguredBinding(targetId);
+        var previousBinding = FindConfiguredBinding(bindingId);
 
         if (previousBinding is null)
         {
             return;
         }
 
-        if (!_hotkeyService.TryUnregister(targetId, out var errorMessage))
+        if (!_hotkeyService.TryUnregister(bindingId, out var errorMessage))
         {
             ShowHotkeyError(errorMessage);
             return;
         }
 
         var previousSettings = CloneSettings(_settings);
-        RemoveConfiguredBinding(targetId);
+        RemoveConfiguredBinding(bindingId);
 
         try
         {
@@ -474,7 +589,7 @@ public partial class MainWindow : Window
         {
             Debug.WriteLine(exception);
             _settings = previousSettings;
-            RollBackRegistration(targetId, previousBinding);
+            RollBackRegistration(bindingId, previousBinding);
             ShowHotkeyError("설정 파일을 저장하지 못해 단축키 삭제를 취소했습니다.");
         }
 
@@ -482,14 +597,14 @@ public partial class MainWindow : Window
         RefreshApplicationSessions();
     }
 
-    private void RollBackRegistration(string targetId, HotkeyBinding? previousBinding)
+    private void RollBackRegistration(string bindingId, HotkeyBinding? previousBinding)
     {
         bool restored;
         string rollbackError;
 
         if (previousBinding is null)
         {
-            restored = _hotkeyService.TryUnregister(targetId, out rollbackError);
+            restored = _hotkeyService.TryUnregister(bindingId, out rollbackError);
         }
         else
         {
@@ -522,23 +637,42 @@ public partial class MainWindow : Window
 
         try
         {
-            if (e.Binding.TargetType == HotkeyTargetType.MasterAudio)
+            if (e.Binding.TargetType == HotkeyTargetType.MasterAudio &&
+                e.Binding.ActionType == HotkeyActionType.ToggleMute)
             {
-                var isMuted = _audioService.ToggleMasterMuteState();
-                UpdateMasterAudioState(isMuted);
+                _audioService.ToggleMasterMuteState();
+                RefreshMasterAudioState();
+            }
+            else if (e.Binding.TargetType == HotkeyTargetType.MasterAudio)
+            {
+                _audioService.SetMasterVolumePercent(_settings.MasterVolumePercent);
+                RefreshMasterAudioState();
+            }
+            else if (!string.IsNullOrWhiteSpace(e.Binding.ProcessName) &&
+                     e.Binding.ActionType == HotkeyActionType.ToggleMute)
+            {
+                _audioService.ToggleApplicationMute(e.Binding.ProcessName);
+                RefreshApplicationSessions();
             }
             else if (!string.IsNullOrWhiteSpace(e.Binding.ProcessName))
             {
-                _audioService.ToggleApplicationMute(e.Binding.ProcessName);
+                var setting = FindApplicationSetting(e.Binding.ProcessName) ??
+                    throw new InvalidOperationException("저장된 앱 볼륨 프리셋을 찾을 수 없습니다.");
+                _audioService.SetApplicationVolumePercent(
+                    e.Binding.ProcessName,
+                    setting.VolumePercent);
                 RefreshApplicationSessions();
             }
         }
         catch (Exception exception)
         {
             Debug.WriteLine(exception);
+            var actionName = e.Binding.ActionType == HotkeyActionType.ToggleMute
+                ? "음소거 상태"
+                : "볼륨 프리셋";
             ShowHotkeyError(e.Binding.TargetType == HotkeyTargetType.MasterAudio
-                ? "단축키로 전체 음소거 상태를 바꾸지 못했습니다."
-                : $"{e.Binding.ProcessName}의 활성 오디오 세션을 찾거나 제어하지 못했습니다.");
+                ? $"단축키로 Master Audio {actionName}를 적용하지 못했습니다."
+                : $"{e.Binding.ProcessName}의 {actionName}를 적용하지 못했습니다.");
             RefreshApplicationSessions();
         }
     }
@@ -547,7 +681,9 @@ public partial class MainWindow : Window
     {
         try
         {
-            UpdateMasterAudioState(_audioService.GetMasterMuteState());
+            UpdateMasterAudioState(
+                _audioService.GetMasterMuteState(),
+                _audioService.GetMasterVolumePercent());
         }
         catch (Exception exception)
         {
@@ -556,6 +692,7 @@ public partial class MainWindow : Window
         finally
         {
             MasterMuteButton.IsEnabled = true;
+            MasterVolumeApplyButton.IsEnabled = true;
         }
     }
 
@@ -563,6 +700,7 @@ public partial class MainWindow : Window
     {
         ApplicationRefreshButton.IsEnabled = false;
         ApplicationErrorText.Visibility = Visibility.Collapsed;
+        _isRefreshingApplicationItems = true;
 
         try
         {
@@ -597,6 +735,7 @@ public partial class MainWindow : Window
         }
         finally
         {
+            _isRefreshingApplicationItems = false;
             ApplicationRefreshButton.IsEnabled = true;
             RefreshOverlayHud();
         }
@@ -612,10 +751,17 @@ public partial class MainWindow : Window
             session.HasMixedMuteState
                 ? "현재 상태: 일부 세션 음소거"
                 : session.IsMuted ? "현재 상태: 음소거" : "현재 상태: 음소거 해제",
+            session.HasMixedVolume
+                ? "현재 볼륨: 혼합"
+                : $"현재 볼륨: {session.VolumePercent}%",
             session.IsMuted ? "음소거 해제" : "음소거",
-            setting is null ? "단축키: 설정 안 됨" : $"단축키: {setting.Hotkey.DisplayText}",
-            setting is null ? "단축키 설정" : "단축키 변경",
-            setting is null ? Visibility.Collapsed : Visibility.Visible,
+            setting?.Hotkey?.DisplayText ?? "설정 안 됨",
+            setting?.Hotkey is null ? "설정" : "변경",
+            setting?.Hotkey is null ? Visibility.Collapsed : Visibility.Visible,
+            setting?.VolumeHotkey?.DisplayText ?? "설정 안 됨",
+            setting?.VolumeHotkey is null ? "설정" : "변경",
+            setting?.VolumeHotkey is null ? Visibility.Collapsed : Visibility.Visible,
+            setting?.VolumePercent ?? AppSettings.DefaultVolumePercent,
             true);
     }
 
@@ -625,24 +771,41 @@ public partial class MainWindow : Window
             setting.ProcessName,
             "저장된 앱 바인딩",
             "현재 상태: 실행 중이 아님",
+            "현재 볼륨: 실행 중이 아님",
             "음소거",
-            $"단축키: {setting.Hotkey.DisplayText}",
-            "단축키 변경",
-            Visibility.Visible,
+            setting.Hotkey?.DisplayText ?? "설정 안 됨",
+            setting.Hotkey is null ? "설정" : "변경",
+            setting.Hotkey is null ? Visibility.Collapsed : Visibility.Visible,
+            setting.VolumeHotkey?.DisplayText ?? "설정 안 됨",
+            setting.VolumeHotkey is null ? "설정" : "변경",
+            setting.VolumeHotkey is null ? Visibility.Collapsed : Visibility.Visible,
+            setting.VolumePercent,
             false);
 
     private IEnumerable<HotkeyBinding> GetConfiguredBindings()
     {
         if (_settings.MasterHotkey is not null)
         {
-            yield return HotkeyBinding.ForMasterAudio(_settings.MasterHotkey);
+            yield return HotkeyBinding.ForMasterMute(_settings.MasterHotkey);
+        }
+
+        if (_settings.MasterVolumeHotkey is not null)
+        {
+            yield return HotkeyBinding.ForMasterVolume(_settings.MasterVolumeHotkey);
         }
 
         foreach (var setting in _settings.ApplicationBindings)
         {
             if (!string.IsNullOrWhiteSpace(setting.ProcessName) && setting.Hotkey is not null)
             {
-                yield return HotkeyBinding.ForApplication(setting.ProcessName, setting.Hotkey);
+                yield return HotkeyBinding.ForApplicationMute(setting.ProcessName, setting.Hotkey);
+            }
+
+            if (!string.IsNullOrWhiteSpace(setting.ProcessName) && setting.VolumeHotkey is not null)
+            {
+                yield return HotkeyBinding.ForApplicationVolume(
+                    setting.ProcessName,
+                    setting.VolumeHotkey);
             }
         }
     }
@@ -651,21 +814,36 @@ public partial class MainWindow : Window
     {
         if (_settings.MasterHotkey is not null)
         {
-            yield return () => HotkeyBinding.ForMasterAudio(_settings.MasterHotkey);
+            yield return () => HotkeyBinding.ForMasterMute(_settings.MasterHotkey);
+        }
+
+        if (_settings.MasterVolumeHotkey is not null)
+        {
+            yield return () => HotkeyBinding.ForMasterVolume(_settings.MasterVolumeHotkey);
         }
 
         foreach (var setting in _settings.ApplicationBindings)
         {
             var savedSetting = setting;
-            yield return () => HotkeyBinding.ForApplication(
-                savedSetting.ProcessName,
-                savedSetting.Hotkey);
+            if (savedSetting.Hotkey is not null)
+            {
+                yield return () => HotkeyBinding.ForApplicationMute(
+                    savedSetting.ProcessName,
+                    savedSetting.Hotkey);
+            }
+
+            if (savedSetting.VolumeHotkey is not null)
+            {
+                yield return () => HotkeyBinding.ForApplicationVolume(
+                    savedSetting.ProcessName,
+                    savedSetting.VolumeHotkey);
+            }
         }
     }
 
-    private HotkeyBinding? FindConfiguredBinding(string targetId) =>
+    private HotkeyBinding? FindConfiguredBinding(string bindingId) =>
         GetConfiguredBindings().FirstOrDefault(binding =>
-            string.Equals(binding.TargetId, targetId, StringComparison.OrdinalIgnoreCase));
+            string.Equals(binding.BindingId, bindingId, StringComparison.OrdinalIgnoreCase));
 
     private ApplicationHotkeySetting? FindApplicationSetting(string processName) =>
         _settings.ApplicationBindings.FirstOrDefault(setting =>
@@ -673,30 +851,77 @@ public partial class MainWindow : Window
 
     private void SetConfiguredBinding(HotkeyBinding binding)
     {
-        if (binding.TargetType == HotkeyTargetType.MasterAudio)
+        if (binding.TargetType == HotkeyTargetType.MasterAudio &&
+            binding.ActionType == HotkeyActionType.ToggleMute)
         {
             _settings.MasterHotkey = binding.Gesture;
             return;
         }
 
+        if (binding.TargetType == HotkeyTargetType.MasterAudio)
+        {
+            _settings.MasterVolumeHotkey = binding.Gesture;
+            return;
+        }
+
         var processName = binding.ProcessName!;
-        _settings.ApplicationBindings.RemoveAll(setting =>
-            string.Equals(setting.ProcessName, processName, StringComparison.OrdinalIgnoreCase));
-        _settings.ApplicationBindings.Add(new ApplicationHotkeySetting(processName, binding.Gesture));
+        var currentSetting = FindApplicationSetting(processName) ??
+            new ApplicationHotkeySetting(processName);
+        ReplaceApplicationSetting(binding.ActionType == HotkeyActionType.ToggleMute
+            ? currentSetting with { Hotkey = binding.Gesture }
+            : currentSetting with { VolumeHotkey = binding.Gesture });
     }
 
-    private void RemoveConfiguredBinding(string targetId)
+    private void RemoveConfiguredBinding(string bindingId)
     {
-        if (string.Equals(targetId, HotkeyBinding.MasterTargetId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(
+                bindingId,
+                HotkeyBinding.MasterMuteBindingId,
+                StringComparison.OrdinalIgnoreCase))
         {
             _settings.MasterHotkey = null;
             return;
         }
 
-        _settings.ApplicationBindings.RemoveAll(setting => string.Equals(
-            HotkeyBinding.GetApplicationTargetId(setting.ProcessName),
-            targetId,
+        if (string.Equals(
+                bindingId,
+                HotkeyBinding.MasterVolumeBindingId,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            _settings.MasterVolumeHotkey = null;
+            return;
+        }
+
+        var setting = _settings.ApplicationBindings.FirstOrDefault(item =>
+            string.Equals(
+                HotkeyBinding.GetApplicationMuteBindingId(item.ProcessName),
+                bindingId,
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                HotkeyBinding.GetApplicationVolumeBindingId(item.ProcessName),
+                bindingId,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (setting is null)
+        {
+            return;
+        }
+
+        ReplaceApplicationSetting(string.Equals(
+            HotkeyBinding.GetApplicationMuteBindingId(setting.ProcessName),
+            bindingId,
+            StringComparison.OrdinalIgnoreCase)
+                ? setting with { Hotkey = null }
+                : setting with { VolumeHotkey = null });
+    }
+
+    private void ReplaceApplicationSetting(ApplicationHotkeySetting setting)
+    {
+        _settings.ApplicationBindings.RemoveAll(existing => string.Equals(
+            existing.ProcessName,
+            setting.ProcessName,
             StringComparison.OrdinalIgnoreCase));
+        _settings.ApplicationBindings.Add(setting);
     }
 
     private static AppSettings CloneSettings(AppSettings settings) => new()
@@ -707,8 +932,70 @@ public partial class MainWindow : Window
         OverlayLeft = settings.OverlayLeft,
         OverlayTop = settings.OverlayTop,
         MasterHotkey = settings.MasterHotkey,
+        MasterVolumeHotkey = settings.MasterVolumeHotkey,
+        MasterVolumePercent = settings.MasterVolumePercent,
         ApplicationBindings = settings.ApplicationBindings.ToList()
     };
+
+    private void SaveMasterVolumePreset(int percent)
+    {
+        var normalizedPercent = Math.Clamp(percent, 1, 100);
+        MasterVolumePresetText.Text = $"{normalizedPercent}%";
+        MasterVolumeApplyButton.Content = $"{normalizedPercent}% 적용";
+
+        if (_settings.MasterVolumePercent == normalizedPercent)
+        {
+            return;
+        }
+
+        var previousSettings = CloneSettings(_settings);
+        _settings.MasterVolumePercent = normalizedPercent;
+
+        try
+        {
+            _settingsService.Save(_settings);
+            HotkeyErrorText.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            _settings = previousSettings;
+            UpdateMasterVolumeSettingDisplay();
+            ShowHotkeyError("Master Audio 볼륨 프리셋을 저장하지 못했습니다.");
+        }
+    }
+
+    private void SaveApplicationVolumePreset(string processName, int percent)
+    {
+        var normalizedPercent = Math.Clamp(percent, 1, 100);
+        var previousSettings = CloneSettings(_settings);
+        var setting = FindApplicationSetting(processName) ??
+            new ApplicationHotkeySetting(processName);
+
+        if (setting.VolumePercent == normalizedPercent &&
+            FindApplicationSetting(processName) is not null)
+        {
+            return;
+        }
+
+        ReplaceApplicationSetting(setting with { VolumePercent = normalizedPercent });
+
+        try
+        {
+            _settingsService.Save(_settings);
+            HotkeyErrorText.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            _settings = previousSettings;
+            ShowHotkeyError($"{processName}의 볼륨 프리셋을 저장하지 못했습니다.");
+            RefreshApplicationSessions();
+            return;
+        }
+
+        RefreshOverlayHud();
+    }
 
     private static OverlayConfiguration CreateOverlayConfiguration(AppSettings settings) => new(
         settings.OverlayLocked,
@@ -810,17 +1097,15 @@ public partial class MainWindow : Window
         {
             var isElevated = _privilegeService.IsElevated;
             PrivilegeStatusText.Text = isElevated
-                ? "현재 권한: 관리자 권한"
-                : "현재 권한: 일반 권한";
-            RestartAsAdministratorButton.Content = isElevated
-                ? "관리자 권한으로 실행 중"
-                : "관리자 권한으로 다시 시작";
+                ? "현재 실행 권한: 관리자 권한"
+                : "현재 실행 권한: 일반 권한";
+            RestartAsAdministratorButton.Content = "MutePilot을 관리자 권한으로 재시작";
             RestartAsAdministratorButton.IsEnabled = !isElevated;
         }
         catch (Exception exception)
         {
             Debug.WriteLine(exception);
-            PrivilegeStatusText.Text = "현재 권한: 확인할 수 없음";
+            PrivilegeStatusText.Text = "현재 실행 권한: 확인할 수 없음";
             RestartAsAdministratorButton.IsEnabled = false;
         }
     }
@@ -828,19 +1113,44 @@ public partial class MainWindow : Window
     private void UpdateMasterHotkeyDisplay()
     {
         MasterHotkeyText.Text = _settings.MasterHotkey is null
-            ? "단축키: 설정 안 됨"
-            : $"단축키: {_settings.MasterHotkey.DisplayText}";
+            ? "설정 안 됨"
+            : _settings.MasterHotkey.DisplayText;
         MasterHotkeyButton.Content = _settings.MasterHotkey is null ? "단축키 설정" : "단축키 변경";
         MasterHotkeyRemoveButton.Visibility = _settings.MasterHotkey is null
             ? Visibility.Collapsed
             : Visibility.Visible;
+
+        MasterVolumeHotkeyText.Text = _settings.MasterVolumeHotkey is null
+            ? "볼륨 단축키: 설정 안 됨"
+            : $"볼륨 단축키: {_settings.MasterVolumeHotkey.DisplayText}";
+        MasterVolumeHotkeyButton.Content = _settings.MasterVolumeHotkey is null
+            ? "단축키 설정"
+            : "단축키 변경";
+        MasterVolumeHotkeyRemoveButton.Visibility = _settings.MasterVolumeHotkey is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
-    private void UpdateMasterAudioState(bool isMuted)
+    private void UpdateMasterVolumeSettingDisplay()
+    {
+        var percent = Math.Clamp(_settings.MasterVolumePercent, 1, 100);
+        MasterVolumeSlider.Value = percent;
+        MasterVolumePresetText.Text = $"{percent}%";
+        MasterVolumeApplyButton.Content = $"{percent}% 적용";
+    }
+
+    private void UpdateMasterAudioState(bool isMuted, int? volumePercent = null)
     {
         _masterIsMuted = isMuted;
+        if (volumePercent is not null)
+        {
+            _masterVolumePercent = Math.Clamp(volumePercent.Value, 0, 100);
+        }
         _audioStateRevision++;
         MasterAudioStatusText.Text = isMuted ? "현재 상태: 음소거" : "현재 상태: 음소거 해제";
+        MasterVolumeStatusText.Text = _masterVolumePercent is int currentVolume
+            ? $"현재 볼륨: {currentVolume}%"
+            : "현재 볼륨: 확인 중";
         MasterMuteButton.Content = isMuted ? "음소거 해제" : "음소거";
         AudioErrorText.Visibility = Visibility.Collapsed;
         RefreshOverlayHud();
@@ -863,6 +1173,7 @@ public partial class MainWindow : Window
         {
             var snapshot = await Task.Run(() => new OverlayAudioSnapshot(
                 _audioService.GetMasterMuteState(),
+                _audioService.GetMasterVolumePercent(),
                 _audioService.GetActiveApplicationSessions()));
 
             if (_isClosed || !_settings.OverlayEnabled || revisionAtStart != _audioStateRevision)
@@ -871,6 +1182,7 @@ public partial class MainWindow : Window
             }
 
             _masterIsMuted = snapshot.MasterIsMuted;
+            _masterVolumePercent = snapshot.MasterVolumePercent;
             _activeApplicationSessions = snapshot.ApplicationSessions;
             _audioStateRevision++;
             RefreshOverlayHud();
@@ -900,7 +1212,8 @@ public partial class MainWindow : Window
                     true => OverlayTargetStatus.Muted,
                     false => OverlayTargetStatus.Unmuted,
                     null => OverlayTargetStatus.Unknown
-                })
+                },
+                _masterVolumePercent)
         };
 
         foreach (var processName in _settings.ApplicationBindings
@@ -910,6 +1223,8 @@ public partial class MainWindow : Window
                      .OrderBy(processName => processName, StringComparer.OrdinalIgnoreCase))
         {
             var status = OverlayTargetStatus.NotRunning;
+            int? volumePercent = null;
+            var hasMixedVolume = false;
 
             if (activeSessions.TryGetValue(processName, out var session))
             {
@@ -918,12 +1233,16 @@ public partial class MainWindow : Window
                     : session.IsMuted
                         ? OverlayTargetStatus.Muted
                         : OverlayTargetStatus.Unmuted;
+                volumePercent = session.VolumePercent;
+                hasMixedVolume = session.HasMixedVolume;
             }
 
             targets.Add(new OverlayTargetState(
                 HotkeyBinding.GetApplicationTargetId(processName),
                 processName,
-                status));
+                status,
+                volumePercent,
+                hasMixedVolume));
         }
 
         _overlayService.UpdateTargets(targets);
@@ -933,6 +1252,7 @@ public partial class MainWindow : Window
     {
         Debug.WriteLine(exception);
         MasterAudioStatusText.Text = "현재 상태: 확인할 수 없음";
+        MasterVolumeStatusText.Text = "현재 볼륨: 확인할 수 없음";
         MasterMuteButton.Content = "음소거 상태 전환";
         AudioErrorText.Text = "기본 오디오 장치를 제어할 수 없습니다. 장치 연결 상태를 확인한 뒤 다시 시도해 주세요.";
         AudioErrorText.Visibility = Visibility.Visible;
@@ -957,23 +1277,34 @@ public partial class MainWindow : Window
         if (messages.Length > 0) ShowHotkeyError(string.Join(Environment.NewLine, messages));
     }
 
-    private static string GetTargetDisplayName(HotkeyBinding binding) =>
-        binding.TargetType == HotkeyTargetType.MasterAudio
-            ? "전체 음소거 단축키"
-            : $"{binding.ProcessName} 단축키";
+    private static string GetTargetDisplayName(HotkeyBinding binding)
+    {
+        var actionName = binding.ActionType == HotkeyActionType.ToggleMute
+            ? "음소거"
+            : "볼륨";
+        return binding.TargetType == HotkeyTargetType.MasterAudio
+            ? $"Master Audio {actionName} 단축키"
+            : $"{binding.ProcessName} {actionName} 단축키";
+    }
 
     private sealed record ApplicationSessionItem(
         string ApplicationKey,
         string ApplicationName,
         string ProcessIdText,
         string StatusText,
+        string VolumeText,
         string ToggleButtonText,
-        string HotkeyText,
-        string HotkeyButtonText,
-        Visibility RemoveButtonVisibility,
+        string MuteHotkeyText,
+        string MuteHotkeyButtonText,
+        Visibility MuteRemoveButtonVisibility,
+        string VolumeHotkeyText,
+        string VolumeHotkeyButtonText,
+        Visibility VolumeRemoveButtonVisibility,
+        int VolumePercent,
         bool IsRunning);
 
     private sealed record OverlayAudioSnapshot(
         bool MasterIsMuted,
+        int MasterVolumePercent,
         IReadOnlyList<ApplicationAudioSession> ApplicationSessions);
 }

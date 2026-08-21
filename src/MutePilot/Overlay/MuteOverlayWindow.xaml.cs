@@ -341,14 +341,29 @@ public partial class MuteOverlayWindow : Window
 
     private static OverlayTargetRow CreateRow(OverlayTargetState target)
     {
+        var volumeText = target.HasMixedVolume
+            ? "혼합"
+            : target.VolumePercent is int percent
+                ? $"{percent}%"
+                : string.Empty;
+
         return target.Status switch
         {
             OverlayTargetStatus.Muted => new OverlayTargetRow(
-                target.DisplayName, "🔇 음소거", Brushes.LightCoral, 1),
+                target.DisplayName,
+                string.IsNullOrEmpty(volumeText) ? "🔇" : $"🔇 {volumeText}",
+                Brushes.LightCoral,
+                1),
             OverlayTargetStatus.Unmuted => new OverlayTargetRow(
-                target.DisplayName, "🔊 음소거 해제", Brushes.LightGreen, 1),
+                target.DisplayName,
+                string.IsNullOrEmpty(volumeText) ? "🔊" : $"🔊 {volumeText}",
+                Brushes.LightGreen,
+                1),
             OverlayTargetStatus.Mixed => new OverlayTargetRow(
-                target.DisplayName, "일부 음소거", Brushes.Khaki, 1),
+                target.DisplayName,
+                string.IsNullOrEmpty(volumeText) ? "일부 음소거" : $"일부 음소거 · {volumeText}",
+                Brushes.Khaki,
+                1),
             OverlayTargetStatus.NotRunning => new OverlayTargetRow(
                 target.DisplayName, "실행 안 됨", Brushes.Gray, 0.68),
             _ => new OverlayTargetRow(

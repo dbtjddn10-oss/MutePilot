@@ -32,7 +32,9 @@ public sealed class OverlayConfigurationChangedEventArgs(
 public sealed record OverlayTargetState(
     string TargetId,
     string DisplayName,
-    OverlayTargetStatus Status);
+    OverlayTargetStatus Status,
+    int? VolumePercent = null,
+    bool HasMixedVolume = false);
 
 public enum OverlayTargetStatus
 {

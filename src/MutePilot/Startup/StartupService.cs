@@ -127,15 +127,15 @@ public sealed class StartupService : IStartupService
                 StartupChangeOutcome.Failed,
                 status,
                 isEnabled
-                    ? "Windows 시작 작업을 만들지 못했습니다. 관리자 권한 승인 여부를 확인해 주세요."
-                    : "Windows 시작 작업을 제거하지 못했습니다. 관리자 권한 승인 여부를 확인해 주세요.");
+                    ? "Windows 자동 실행 작업을 만들지 못했습니다. 관리자 권한 승인 여부를 확인해 주세요."
+                    : "Windows 자동 실행 작업을 제거하지 못했습니다. 관리자 권한 승인 여부를 확인해 주세요.");
         }
         catch (Win32Exception exception) when (exception.NativeErrorCode == UacCancelledErrorCode)
         {
             return new StartupChangeResult(
                 StartupChangeOutcome.Cancelled,
                 GetStatus(),
-                "관리자 권한 요청이 취소되어 Windows 시작 설정을 바꾸지 않았습니다.");
+                "관리자 권한 요청이 취소되어 Windows 자동 실행 설정을 바꾸지 않았습니다.");
         }
         catch (Exception exception)
         {

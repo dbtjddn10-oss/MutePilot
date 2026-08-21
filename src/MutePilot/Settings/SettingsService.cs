@@ -55,13 +55,20 @@ public sealed class SettingsService : ISettingsService
             var settings = JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions) ??
                 new AppSettings();
             NormalizeOverlaySettings(settings);
+            NormalizeVolumeSettings(settings);
             settings.ApplicationBindings ??= [];
             var bindingCount = settings.ApplicationBindings.Count;
             settings.ApplicationBindings = settings.ApplicationBindings
                 .Where(setting =>
                     setting is not null &&
-                    !string.IsNullOrWhiteSpace(setting.ProcessName) &&
-                    setting.Hotkey is not null)
+                    !string.IsNullOrWhiteSpace(setting.ProcessName))
+                .Select(setting => setting with
+                {
+                    ProcessName = setting.ProcessName.Trim(),
+                    VolumePercent = NormalizeVolumePercent(setting.VolumePercent)
+                })
+                .GroupBy(setting => setting.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
                 .ToList();
 
             var warningMessage = settings.ApplicationBindings.Count == bindingCount
@@ -94,6 +101,16 @@ public sealed class SettingsService : ISettingsService
             settings.OverlayTop = null;
         }
     }
+
+    private static void NormalizeVolumeSettings(AppSettings settings)
+    {
+        settings.MasterVolumePercent = NormalizeVolumePercent(settings.MasterVolumePercent);
+    }
+
+    private static int NormalizeVolumePercent(int percent) =>
+        percent == 0
+            ? AppSettings.DefaultVolumePercent
+            : Math.Clamp(percent, 1, 100);
 
     public void Save(AppSettings settings)
     {

@@ -4,6 +4,8 @@ namespace MutePilot.Settings;
 
 public sealed class AppSettings
 {
+    public const int DefaultVolumePercent = 50;
+
     public bool OverlayEnabled { get; set; } = true;
 
     public bool OverlayLocked { get; set; } = true;
@@ -16,9 +18,15 @@ public sealed class AppSettings
 
     public HotkeyGesture? MasterHotkey { get; set; }
 
+    public HotkeyGesture? MasterVolumeHotkey { get; set; }
+
+    public int MasterVolumePercent { get; set; } = DefaultVolumePercent;
+
     public List<ApplicationHotkeySetting> ApplicationBindings { get; set; } = [];
 }
 
 public sealed record ApplicationHotkeySetting(
     string ProcessName,
-    HotkeyGesture Hotkey);
+    HotkeyGesture? Hotkey = null,
+    HotkeyGesture? VolumeHotkey = null,
+    int VolumePercent = AppSettings.DefaultVolumePercent);

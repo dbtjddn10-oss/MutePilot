@@ -70,7 +70,7 @@ public sealed class PrivilegeService : IPrivilegeService
             Debug.WriteLine(exception);
             return new ElevationRestartResult(
                 ElevationRestartOutcome.Failed,
-                "관리자 권한으로 다시 시작하지 못했습니다.");
+                "MutePilot을 관리자 권한으로 재시작하지 못했습니다.");
         }
     }
 }

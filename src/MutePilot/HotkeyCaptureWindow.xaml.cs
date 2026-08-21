@@ -8,9 +8,10 @@ public partial class HotkeyCaptureWindow : Window
 {
     private HotkeyGesture? _capturedGesture;
 
-    public HotkeyCaptureWindow(HotkeyGesture? currentGesture)
+    public HotkeyCaptureWindow(HotkeyGesture? currentGesture, string contextText)
     {
         InitializeComponent();
+        CaptureContextText.Text = contextText;
 
         if (currentGesture is not null)
         {

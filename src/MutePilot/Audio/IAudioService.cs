@@ -8,7 +8,13 @@ public interface IAudioService
 
     bool ToggleMasterMuteState();
 
+    int GetMasterVolumePercent();
+
+    int SetMasterVolumePercent(int percent);
+
     IReadOnlyList<ApplicationAudioSession> GetActiveApplicationSessions();
 
     ApplicationAudioSession ToggleApplicationMute(string applicationKey);
+
+    ApplicationAudioSession SetApplicationVolumePercent(string applicationKey, int percent);
 }

@@ -12,5 +12,5 @@ public interface IHotkeyService : IDisposable
 
     bool TryRegisterOrReplace(HotkeyBinding binding, out string errorMessage);
 
-    bool TryUnregister(string targetId, out string errorMessage);
+    bool TryUnregister(string bindingId, out string errorMessage);
 }

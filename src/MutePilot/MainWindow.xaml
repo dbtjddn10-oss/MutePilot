@@ -1,0 +1,78 @@
+﻿<Window x:Class="MutePilot.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MutePilot"
+        Width="560"
+        Height="520"
+        MinWidth="480"
+        MinHeight="460"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBackgroundBrush}"
+        Foreground="{StaticResource PrimaryTextBrush}">
+    <Grid Margin="28,24,28,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,22">
+            <TextBlock FontSize="28"
+                       FontWeight="SemiBold"
+                       Text="MutePilot" />
+            <TextBlock Margin="0,6,0,0"
+                       FontSize="13"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="Custom hotkey-based Windows audio muting" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1">
+            <Border Padding="18"
+                    Background="{StaticResource PanelBackgroundBrush}"
+                    BorderBrush="{StaticResource PanelBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                <StackPanel>
+                    <TextBlock FontSize="17"
+                               FontWeight="SemiBold"
+                               Text="Master Audio" />
+                    <TextBlock Margin="0,8,0,14"
+                               FontSize="13"
+                               Foreground="{StaticResource SecondaryTextBrush}"
+                               Text="Master mute control will be added in a later step."
+                               TextWrapping="Wrap" />
+                    <Button Width="160"
+                            Height="32"
+                            HorizontalAlignment="Left"
+                            Content="Not implemented yet"
+                            IsEnabled="False" />
+                </StackPanel>
+            </Border>
+
+            <Border Margin="0,16,0,0"
+                    Padding="18"
+                    Background="{StaticResource PanelBackgroundBrush}"
+                    BorderBrush="{StaticResource PanelBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                <StackPanel>
+                    <TextBlock FontSize="17"
+                               FontWeight="SemiBold"
+                               Text="Application Shortcuts" />
+                    <TextBlock Margin="0,8,0,0"
+                               FontSize="13"
+                               Foreground="{StaticResource SecondaryTextBrush}"
+                               Text="Application hotkey bindings will appear here later."
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <TextBlock Grid.Row="2"
+                   Margin="0,18,0,0"
+                   HorizontalAlignment="Center"
+                   FontSize="12"
+                   Foreground="{StaticResource SecondaryTextBrush}"
+                   Text="Made by 유성우" />
+    </Grid>
+</Window>

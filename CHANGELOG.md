@@ -38,7 +38,17 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * 오버레이가 포커스를 받거나 마우스 입력을 가로채지 않도록 `WS_EX_NOACTIVATE`, `WS_EX_TRANSPARENT`, `WS_EX_TOOLWINDOW` 확장 스타일 적용
 * 메인 화면에서 오버레이를 즉시 켜고 끄는 설정과 `%LocalAppData%\MutePilot\settings.json`의 `overlayEnabled` 저장·복원 추가
 * 기존 설정 파일에 `overlayEnabled`가 없을 때 기본값 ON을 사용하도록 이전 설정과의 호환성 유지
+* 잠금 해제 상태에서 제목 영역을 drag해 HUD 위치를 옮기고 종료 뒤에도 복원하는 기능 추가
+* HUD 상태 card의 투명도를 20~100% 범위에서 조절하는 compact slider 추가
+* `overlayLocked`, `overlayOpacity`, `overlayLeft`, `overlayTop` 설정을 기존 JSON에 호환되는 방식으로 추가
+* 저장 좌표가 화면 밖이면 가장 가까운 monitor 작업 영역으로 되돌리는 위치 안전 처리 추가
+* 메인 화면에 HUD를 주 모니터 오른쪽 위로 되돌리는 `오버레이 위치 초기화` 버튼 추가
+* foreground window와 monitor 크기를 약 400ms마다 비교하는 generic fullscreen 감지 추가
+* fullscreen 중에는 저장된 잠금 설정을 바꾸지 않고 control을 숨기며 `WS_EX_TRANSPARENT` click-through를 강제하도록 변경
+* 일반 화면의 잠금 상태에서는 HUD 본문 click을 통과시키면서 잠금 버튼만 사용할 수 있도록 `WM_NCHITTEST` 처리 추가
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 
 고정형 HUD가 2.3초 뒤에도 유지되는 것과 click-through, focus 유지, ON/OFF, 설정 복원, 같은 window의 상태 갱신을 Windows 환경에서 검증했습니다. 실제 SuddenAttack에서도 게임에 포커스가 있는 동안 HUD가 계속 보이고, Overlay ON/OFF와 기존 F8 앱별 음소거·해제가 정상 동작하는 것을 수동으로 확인했습니다. 다른 독점 전체 화면 애플리케이션 위의 표시는 일반 WPF 창 방식으로 보장되지 않습니다.
+
+위치 이동과 drag 완료 좌표 전달, 잠금 시 이동 차단, 20%·100% 투명도, 화면 밖 좌표 복구, 재시작 위치 복원, 위치 초기화, fullscreen display-only 자동 전환과 복귀를 검증했습니다. 새 설정 UI의 SuddenAttack mouse interaction은 아직 수동 검증하지 않았습니다.

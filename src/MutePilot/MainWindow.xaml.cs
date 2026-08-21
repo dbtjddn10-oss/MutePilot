@@ -277,6 +277,17 @@ public partial class MainWindow : Window
 
     private void HotkeyService_HotkeyPressed(object? sender, HotkeyPressedEventArgs e)
     {
+        if (!Dispatcher.CheckAccess())
+        {
+            if (!Dispatcher.HasShutdownStarted)
+            {
+                Dispatcher.BeginInvoke(
+                    () => HotkeyService_HotkeyPressed(sender, e));
+            }
+
+            return;
+        }
+
         if (_isCapturingHotkey)
         {
             return;

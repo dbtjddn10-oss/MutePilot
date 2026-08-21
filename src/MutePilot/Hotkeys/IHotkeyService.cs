@@ -4,7 +4,7 @@ public interface IHotkeyService : IDisposable
 {
     event EventHandler<HotkeyPressedEventArgs>? HotkeyPressed;
 
-    bool IsRawInputAvailable { get; }
+    bool IsStandalonePollingAvailable { get; }
 
     string? InitializationWarning { get; }
 

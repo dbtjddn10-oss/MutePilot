@@ -8,38 +8,31 @@ namespace MutePilot.Hotkeys;
 
 public sealed class HotkeyService : IHotkeyService
 {
-    private const int WmInput = 0x00FF;
     private const int WmHotkey = 0x0312;
-    private const uint RidInput = 0x10000003;
-    private const uint RimTypeKeyboard = 1;
-    private const ushort RiKeyBreak = 0x0001;
-    private const ushort RiKeyE0 = 0x0002;
-    private const ushort RiKeyE1 = 0x0004;
-    private const uint RidevRemove = 0x00000001;
-    private const uint RidevInputSink = 0x00000100;
-    private const ushort GenericDesktopUsagePage = 0x01;
-    private const ushort KeyboardUsage = 0x06;
+    private const int StandalonePollingIntervalMilliseconds = 15;
+    private const short KeyDownMask = unchecked((short)0x8000);
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
     private const uint ModShift = 0x0004;
     private const uint ModNoRepeat = 0x4000;
     private const int FirstHotkeyId = 0x4000;
 
+    private readonly object _syncRoot = new();
     private readonly Dictionary<string, HotkeyRegistration> _registrationsByTarget =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<int, HotkeyRegistration> _registrationsById = [];
-    private readonly Dictionary<uint, HotkeyRegistration> _rawRegistrationsByVirtualKey = [];
-    private readonly HashSet<uint> _pressedStandaloneKeys = [];
-    private readonly HashSet<int> _pressedModifierKeys = [];
+    private readonly Dictionary<int, HotkeyRegistration> _standaloneRegistrationsByVirtualKey = [];
+    private readonly HashSet<int> _pressedStandaloneKeys = [];
     private HwndSource? _source;
+    private CancellationTokenSource? _pollingCancellation;
+    private Task? _pollingTask;
     private nint _windowHandle;
     private int _nextHotkeyId = FirstHotkeyId;
-    private bool _rawInputRegistered;
     private bool _disposed;
 
     public event EventHandler<HotkeyPressedEventArgs>? HotkeyPressed;
 
-    public bool IsRawInputAvailable => _rawInputRegistered;
+    public bool IsStandalonePollingAvailable { get; private set; }
 
     public string? InitializationWarning { get; private set; }
 
@@ -62,12 +55,19 @@ public sealed class HotkeyService : IHotkeyService
         _windowHandle = windowHandle;
         _source.AddHook(WindowMessageHook);
 
-        _rawInputRegistered = TryRegisterRawKeyboard(windowHandle);
-
-        if (!_rawInputRegistered)
+        try
         {
+            _pollingCancellation = new CancellationTokenSource();
+            _pollingTask = Task.Run(
+                () => PollStandaloneKeysAsync(_pollingCancellation.Token),
+                _pollingCancellation.Token);
+            IsStandalonePollingAvailable = true;
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
             InitializationWarning =
-                "Raw Input을 시작하지 못해 단독 F1~F11 단축키를 사용할 수 없습니다. modifier 조합은 계속 사용할 수 있습니다.";
+                "단독 F1~F11 감시를 시작하지 못했습니다. modifier 조합은 계속 사용할 수 있습니다.";
         }
     }
 
@@ -86,57 +86,66 @@ public sealed class HotkeyService : IHotkeyService
             return false;
         }
 
-        var duplicate = _registrationsByTarget.Values.FirstOrDefault(registration =>
-            !string.Equals(
-                registration.Binding.TargetId,
-                binding.TargetId,
-                StringComparison.OrdinalIgnoreCase) &&
-            registration.Binding.Gesture == binding.Gesture);
-
-        if (duplicate is not null)
+        lock (_syncRoot)
         {
-            errorMessage = "이미 MutePilot에서 사용 중인 단축키입니다.";
-            return false;
+            var duplicate = _registrationsByTarget.Values.FirstOrDefault(registration =>
+                !string.Equals(
+                    registration.Binding.TargetId,
+                    binding.TargetId,
+                    StringComparison.OrdinalIgnoreCase) &&
+                registration.Binding.Gesture == binding.Gesture);
+
+            if (duplicate is not null)
+            {
+                errorMessage = "이미 MutePilot에서 사용 중인 단축키입니다.";
+                return false;
+            }
+
+            _registrationsByTarget.TryGetValue(binding.TargetId, out var previousRegistration);
+
+            if (previousRegistration?.Binding.Gesture == binding.Gesture)
+            {
+                UpdateRegistrationBinding(previousRegistration, binding);
+                errorMessage = string.Empty;
+                return true;
+            }
+
+            if (binding.Gesture.IsStandaloneFunctionKey)
+            {
+                return TryRegisterStandaloneBinding(
+                    binding,
+                    previousRegistration,
+                    out errorMessage);
+            }
+
+            return TryRegisterNativeBinding(binding, previousRegistration, out errorMessage);
         }
-
-        _registrationsByTarget.TryGetValue(binding.TargetId, out var previousRegistration);
-
-        if (previousRegistration?.Binding.Gesture == binding.Gesture)
-        {
-            UpdateRegistrationBinding(previousRegistration, binding);
-            errorMessage = string.Empty;
-            return true;
-        }
-
-        if (binding.Gesture.IsStandaloneFunctionKey)
-        {
-            return TryRegisterRawBinding(binding, previousRegistration, out errorMessage);
-        }
-
-        return TryRegisterNativeBinding(binding, previousRegistration, out errorMessage);
     }
 
     public bool TryUnregister(string targetId, out string errorMessage)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!_registrationsByTarget.TryGetValue(targetId, out var registration))
+        lock (_syncRoot)
         {
+            if (!_registrationsByTarget.TryGetValue(targetId, out var registration))
+            {
+                errorMessage = string.Empty;
+                return true;
+            }
+
+            if (registration.NativeId is int nativeId &&
+                !UnregisterHotKey(_windowHandle, nativeId))
+            {
+                Debug.WriteLine(new Win32Exception(Marshal.GetLastWin32Error()));
+                errorMessage = "Windows에서 기존 단축키를 해제하지 못했습니다.";
+                return false;
+            }
+
+            RemoveRegistrationMaps(registration);
             errorMessage = string.Empty;
             return true;
         }
-
-        if (registration.NativeId is int nativeId &&
-            !UnregisterHotKey(_windowHandle, nativeId))
-        {
-            Debug.WriteLine(new Win32Exception(Marshal.GetLastWin32Error()));
-            errorMessage = "Windows에서 기존 단축키를 해제하지 못했습니다.";
-            return false;
-        }
-
-        RemoveRegistrationMaps(registration);
-        errorMessage = string.Empty;
-        return true;
     }
 
     public void Dispose()
@@ -146,24 +155,41 @@ public sealed class HotkeyService : IHotkeyService
             return;
         }
 
-        foreach (var nativeId in _registrationsById.Keys.ToArray())
+        _disposed = true;
+        IsStandalonePollingAvailable = false;
+        _pollingCancellation?.Cancel();
+
+        if (_pollingTask is not null)
         {
-            if (!UnregisterHotKey(_windowHandle, nativeId))
+            try
             {
-                Debug.WriteLine(new Win32Exception(Marshal.GetLastWin32Error()));
+                _pollingTask.Wait(TimeSpan.FromSeconds(1));
+            }
+            catch (AggregateException exception) when (
+                exception.InnerExceptions.All(inner => inner is TaskCanceledException))
+            {
+                Debug.WriteLine(exception);
             }
         }
 
-        _registrationsByTarget.Clear();
-        _registrationsById.Clear();
-        _rawRegistrationsByVirtualKey.Clear();
-        _pressedStandaloneKeys.Clear();
-        _pressedModifierKeys.Clear();
+        _pollingCancellation?.Dispose();
+        _pollingCancellation = null;
+        _pollingTask = null;
 
-        if (_rawInputRegistered)
+        lock (_syncRoot)
         {
-            TryRemoveRawKeyboardRegistration();
-            _rawInputRegistered = false;
+            foreach (var nativeId in _registrationsById.Keys.ToArray())
+            {
+                if (!UnregisterHotKey(_windowHandle, nativeId))
+                {
+                    Debug.WriteLine(new Win32Exception(Marshal.GetLastWin32Error()));
+                }
+            }
+
+            _registrationsByTarget.Clear();
+            _registrationsById.Clear();
+            _standaloneRegistrationsByVirtualKey.Clear();
+            _pressedStandaloneKeys.Clear();
         }
 
         if (_source is not null)
@@ -173,17 +199,16 @@ public sealed class HotkeyService : IHotkeyService
         }
 
         _windowHandle = nint.Zero;
-        _disposed = true;
     }
 
-    private bool TryRegisterRawBinding(
+    private bool TryRegisterStandaloneBinding(
         HotkeyBinding binding,
         HotkeyRegistration? previousRegistration,
         out string errorMessage)
     {
-        if (!_rawInputRegistered)
+        if (!IsStandalonePollingAvailable)
         {
-            errorMessage = "Raw Input을 사용할 수 없어 단독 F키를 등록하지 못했습니다.";
+            errorMessage = "단독 F키 감시를 사용할 수 없어 단축키를 등록하지 못했습니다.";
             return false;
         }
 
@@ -200,11 +225,20 @@ public sealed class HotkeyService : IHotkeyService
             RemoveRegistrationMaps(previousRegistration);
         }
 
-        var virtualKey = unchecked((uint)KeyInterop.VirtualKeyFromKey(binding.Gesture.Key));
+        var virtualKey = KeyInterop.VirtualKeyFromKey(binding.Gesture.Key);
         var registration = new HotkeyRegistration(null, binding);
         _registrationsByTarget[binding.TargetId] = registration;
-        _rawRegistrationsByVirtualKey[virtualKey] = registration;
-        _pressedStandaloneKeys.Remove(virtualKey);
+        _standaloneRegistrationsByVirtualKey[virtualKey] = registration;
+
+        if (IsKeyDown(virtualKey))
+        {
+            _pressedStandaloneKeys.Add(virtualKey);
+        }
+        else
+        {
+            _pressedStandaloneKeys.Remove(virtualKey);
+        }
+
         errorMessage = string.Empty;
         return true;
     }
@@ -260,8 +294,8 @@ public sealed class HotkeyService : IHotkeyService
         }
         else
         {
-            var virtualKey = unchecked((uint)KeyInterop.VirtualKeyFromKey(binding.Gesture.Key));
-            _rawRegistrationsByVirtualKey[virtualKey] = updatedRegistration;
+            var virtualKey = KeyInterop.VirtualKeyFromKey(binding.Gesture.Key);
+            _standaloneRegistrationsByVirtualKey[virtualKey] = updatedRegistration;
         }
     }
 
@@ -275,15 +309,9 @@ public sealed class HotkeyService : IHotkeyService
             return;
         }
 
-        var virtualKey = unchecked(
-            (uint)KeyInterop.VirtualKeyFromKey(registration.Binding.Gesture.Key));
-        _rawRegistrationsByVirtualKey.Remove(virtualKey);
+        var virtualKey = KeyInterop.VirtualKeyFromKey(registration.Binding.Gesture.Key);
+        _standaloneRegistrationsByVirtualKey.Remove(virtualKey);
         _pressedStandaloneKeys.Remove(virtualKey);
-
-        if (_rawRegistrationsByVirtualKey.Count == 0)
-        {
-            _pressedModifierKeys.Clear();
-        }
     }
 
     private nint WindowMessageHook(
@@ -293,176 +321,113 @@ public sealed class HotkeyService : IHotkeyService
         nint lParam,
         ref bool handled)
     {
-        if (message == WmHotkey &&
-            _registrationsById.TryGetValue(wParam.ToInt32(), out var registration))
+        if (message != WmHotkey ||
+            !_registrationsById.TryGetValue(wParam.ToInt32(), out var registration))
         {
-            handled = true;
-            HotkeyPressed?.Invoke(this, new HotkeyPressedEventArgs(registration.Binding));
-        }
-        else if (message == WmInput && _rawInputRegistered)
-        {
-            ProcessRawKeyboardInput(lParam);
+            return nint.Zero;
         }
 
+        handled = true;
+        HotkeyPressed?.Invoke(this, new HotkeyPressedEventArgs(registration.Binding));
         return nint.Zero;
     }
 
-    private void ProcessRawKeyboardInput(nint rawInputHandle)
+    private async Task PollStandaloneKeysAsync(CancellationToken cancellationToken)
     {
-        var headerSize = unchecked((uint)Marshal.SizeOf<RawInputHeader>());
-        var minimumInputSize = headerSize + unchecked((uint)Marshal.SizeOf<RawKeyboard>());
-        var dataSize = 0U;
-
-        if (GetRawInputData(
-                rawInputHandle,
-                RidInput,
-                nint.Zero,
-                ref dataSize,
-                headerSize) != 0 ||
-            dataSize < minimumInputSize ||
-            dataSize > int.MaxValue)
-        {
-            return;
-        }
-
-        var buffer = Marshal.AllocHGlobal(unchecked((int)dataSize));
+        using var timer = new PeriodicTimer(
+            TimeSpan.FromMilliseconds(StandalonePollingIntervalMilliseconds));
 
         try
         {
-            var copiedSize = dataSize;
-            var result = GetRawInputData(
-                rawInputHandle,
-                RidInput,
-                buffer,
-                ref copiedSize,
-                headerSize);
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                PollStandaloneKeys();
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Normal application shutdown.
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+        }
+    }
 
-            if (result == uint.MaxValue || result < minimumInputSize)
+    private void PollStandaloneKeys()
+    {
+        List<HotkeyBinding>? triggeredBindings = null;
+
+        lock (_syncRoot)
+        {
+            if (_disposed)
             {
                 return;
             }
 
-            var header = Marshal.PtrToStructure<RawInputHeader>(buffer);
-
-            if (header.Type != RimTypeKeyboard)
+            foreach (var pair in _standaloneRegistrationsByVirtualKey)
             {
-                return;
+                var virtualKey = pair.Key;
+                var isDown = IsKeyDown(virtualKey);
+
+                if (UpdatePressedState(_pressedStandaloneKeys, virtualKey, isDown))
+                {
+                    triggeredBindings ??= [];
+                    triggeredBindings.Add(pair.Value.Binding);
+                }
+            }
+        }
+
+        if (triggeredBindings is null)
+        {
+            return;
+        }
+
+        foreach (var binding in triggeredBindings)
+        {
+            if (!IsBindingStillRegistered(binding))
+            {
+                continue;
             }
 
-            var keyboardPointer = nint.Add(buffer, unchecked((int)headerSize));
-            var keyboard = Marshal.PtrToStructure<RawKeyboard>(keyboardPointer);
-            HandleRawKeyboardEvent(keyboard);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(buffer);
+            try
+            {
+                HotkeyPressed?.Invoke(this, new HotkeyPressedEventArgs(binding));
+            }
+            catch (Exception exception)
+            {
+                Debug.WriteLine(exception);
+            }
         }
     }
 
-    private void HandleRawKeyboardEvent(RawKeyboard keyboard)
+    private bool IsBindingStillRegistered(HotkeyBinding binding)
     {
-        if (_rawRegistrationsByVirtualKey.Count == 0 || keyboard.VirtualKey == byte.MaxValue)
+        lock (_syncRoot)
         {
-            return;
+            return !_disposed &&
+                _registrationsByTarget.TryGetValue(binding.TargetId, out var registration) &&
+                registration.Binding == binding;
         }
-
-        var virtualKey = unchecked((uint)keyboard.VirtualKey);
-        var isKeyUp = (keyboard.Flags & RiKeyBreak) != 0;
-
-        if (IsModifierVirtualKey(keyboard.VirtualKey))
-        {
-            var modifierToken = CreateModifierToken(keyboard);
-
-            if (isKeyUp)
-            {
-                _pressedModifierKeys.Remove(modifierToken);
-            }
-            else
-            {
-                _pressedModifierKeys.Add(modifierToken);
-            }
-
-            return;
-        }
-
-        if (!_rawRegistrationsByVirtualKey.TryGetValue(virtualKey, out var registration))
-        {
-            return;
-        }
-
-        if (isKeyUp)
-        {
-            _pressedStandaloneKeys.Remove(virtualKey);
-            return;
-        }
-
-        if (!_pressedStandaloneKeys.Add(virtualKey) || _pressedModifierKeys.Count > 0)
-        {
-            return;
-        }
-
-        HotkeyPressed?.Invoke(this, new HotkeyPressedEventArgs(registration.Binding));
     }
 
-    private bool TryRegisterRawKeyboard(nint windowHandle)
+    private static bool IsKeyDown(int virtualKey)
     {
-        var devices = new[]
-        {
-            new RawInputDevice
-            {
-                UsagePage = GenericDesktopUsagePage,
-                Usage = KeyboardUsage,
-                Flags = RidevInputSink,
-                TargetWindow = windowHandle
-            }
-        };
+        return (GetAsyncKeyState(virtualKey) & KeyDownMask) != 0;
+    }
 
-        if (RegisterRawInputDevices(
-                devices,
-                unchecked((uint)devices.Length),
-                unchecked((uint)Marshal.SizeOf<RawInputDevice>())))
+    private static bool UpdatePressedState(
+        HashSet<int> pressedKeys,
+        int virtualKey,
+        bool isDown)
+    {
+        if (isDown)
         {
-            return true;
+            return pressedKeys.Add(virtualKey);
         }
 
-        Debug.WriteLine(new Win32Exception(Marshal.GetLastWin32Error()));
+        pressedKeys.Remove(virtualKey);
         return false;
-    }
-
-    private void TryRemoveRawKeyboardRegistration()
-    {
-        var devices = new[]
-        {
-            new RawInputDevice
-            {
-                UsagePage = GenericDesktopUsagePage,
-                Usage = KeyboardUsage,
-                Flags = RidevRemove,
-                TargetWindow = nint.Zero
-            }
-        };
-
-        if (!RegisterRawInputDevices(
-                devices,
-                unchecked((uint)devices.Length),
-                unchecked((uint)Marshal.SizeOf<RawInputDevice>())))
-        {
-            Debug.WriteLine(new Win32Exception(Marshal.GetLastWin32Error()));
-        }
-    }
-
-    private static int CreateModifierToken(RawKeyboard keyboard)
-    {
-        var extendedFlags = keyboard.Flags & (RiKeyE0 | RiKeyE1);
-        return (keyboard.VirtualKey << 16) | (keyboard.MakeCode << 4) | extendedFlags;
-    }
-
-    private static bool IsModifierVirtualKey(ushort virtualKey)
-    {
-        return virtualKey is
-            0x10 or 0x11 or 0x12 or
-            0x5B or 0x5C or
-            0xA0 or 0xA1 or 0xA2 or 0xA3 or 0xA4 or 0xA5;
     }
 
     private static uint ToNativeModifiers(HotkeyModifiers modifiers)
@@ -476,6 +441,9 @@ public sealed class HotkeyService : IHotkeyService
         return nativeModifiers;
     }
 
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int virtualKey);
+
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool RegisterHotKey(
@@ -487,50 +455,6 @@ public sealed class HotkeyService : IHotkeyService
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool UnregisterHotKey(nint windowHandle, int id);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool RegisterRawInputDevices(
-        [In] RawInputDevice[] rawInputDevices,
-        uint deviceCount,
-        uint rawInputDeviceSize);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint GetRawInputData(
-        nint rawInput,
-        uint command,
-        nint data,
-        ref uint size,
-        uint headerSize);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RawInputDevice
-    {
-        public ushort UsagePage;
-        public ushort Usage;
-        public uint Flags;
-        public nint TargetWindow;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private readonly struct RawInputHeader
-    {
-        public readonly uint Type;
-        public readonly uint Size;
-        public readonly nint Device;
-        public readonly nint WParam;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private readonly struct RawKeyboard
-    {
-        public readonly ushort MakeCode;
-        public readonly ushort Flags;
-        public readonly ushort Reserved;
-        public readonly ushort VirtualKey;
-        public readonly uint Message;
-        public readonly uint ExtraInformation;
-    }
 
     private sealed record HotkeyRegistration(int? NativeId, HotkeyBinding Binding);
 }

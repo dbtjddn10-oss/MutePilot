@@ -10,7 +10,7 @@ MutePilot은 사용자가 지정한 전역 단축키로 Windows의 마스터 오
 
 ## 현재 개발 상태
 
-현재는 **v0.6 기능 개발 단계**입니다.
+현재는 **v0.7 기능 개발 단계**입니다.
 
 .NET 8 WPF 앱에서 Windows 기본 출력 장치의 마스터 음소거 상태를 읽고, 버튼으로 음소거와 음소거 해제를 전환하는 기능을 구현했습니다. 실제 Windows PC에서 음소거, 음소거 해제, UI 상태 반영이 정상 동작하는 것을 수동으로 확인했습니다.
 
@@ -22,11 +22,13 @@ MutePilot은 사용자가 지정한 전역 단축키로 Windows의 마스터 오
 
 Windows 마스터 오디오와 각 애플리케이션에 사용자 지정 전역 단축키를 설정·변경·삭제할 수 있습니다. 앱별 설정은 PID가 아니라 `ProcessName`으로 저장되므로 앱이 종료된 상태에서도 바인딩이 유지되고, 다시 실행되어 오디오 세션이 생기면 같은 설정을 사용할 수 있습니다. 설정은 `%LocalAppData%\MutePilot\settings.json`에 저장되며 MutePilot을 다시 실행할 때 복원됩니다.
 
-전역 단축키는 MutePilot이 실행 중일 때만 동작합니다. Whale 전역 단축키와 SuddenAttack foreground의 `Ctrl + Alt + F8`을 수동 검증했습니다. 단독 F키 polling은 일반 권한으로 실행한 MutePilot에서는 관리자 권한 SuddenAttack의 F7/F8 상태를 읽지 못했지만, MutePilot도 관리자 권한으로 실행했을 때 Master Audio의 F7과 SuddenAttack의 F8이 정상 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 것도 확인했습니다.
+전역 단축키는 MutePilot이 실행 중일 때만 동작합니다. 기존에는 단독 단축키를 F1~F11로 제한하고 modifier 조합도 영문·숫자 위주로 검사했지만, v0.7에서는 사용자가 입력 창에서 누른 키를 Windows virtual-key 값과 modifier flags로 표현하도록 바꿨습니다. 특정 키 목록을 늘리는 방식이 아니므로 W, Space, F8 같은 예시는 모두 같은 변환·검증 경로를 사용합니다.
 
-Ctrl/Alt/Shift가 포함된 조합은 Windows `RegisterHotKey`를 사용합니다. F1~F11 단독 단축키는 현재 설정된 키만 `GetAsyncKeyState`로 확인하며, foreground 프로그램에도 같은 F키 입력은 그대로 전달됩니다. 게임 자체 단축키와 충돌한다면 modifier 조합을 사용하는 편이 안전합니다. 관리자 권한으로 실행되는 게임에서 단독 F키를 사용하려면 MutePilot도 관리자 권한 실행이 필요할 수 있습니다. MutePilot을 항상 관리자 권한으로 실행해야 하는 것은 아닙니다.
+Modifier가 없는 단축키는 사용자가 실제로 설정한 virtual-key만 약 15ms 간격의 단일 `GetAsyncKeyState` loop에서 확인합니다. 전체 키보드를 훑거나 다른 키 입력을 기록하지 않습니다. Ctrl/Alt/Shift/Win이 포함된 조합은 기존 `RegisterHotKey`와 `WM_HOTKEY` 경로를 사용하며 Windows 또는 다른 프로그램이 이미 쓰는 조합은 등록이 거부될 수 있습니다. 순수 modifier처럼 현재 구조에서 모호한 입력만 기술적 이유로 거부합니다.
 
-**사용자 지정 전역 단축키: 구현 완료 / 실제 PC 수동 검증 완료 / 관리자 게임 권한 제한 확인**
+MutePilot은 설정한 키를 관찰할 뿐 차단하거나 다른 입력으로 바꾸지 않습니다. 따라서 같은 키의 게임·편집기·브라우저 원래 동작도 그대로 전달됩니다. 관리자 권한 프로그램에서 단독 키를 확인하려면 MutePilot도 같은 권한 수준이 필요할 수 있습니다. 기존 F키와 modifier 설정은 이전 JSON의 `key` 값을 자동으로 virtual-key로 변환해 그대로 불러옵니다.
+
+**사용자 선택형 전역 단축키: generic virtual-key 구조 및 자동 검증 완료 / 실제 선택 키 게임 검증 필요**
 
 오버레이를 켜면 주 모니터 오른쪽 위에 작은 고정형 HUD가 계속 표시됩니다. HUD에는 `Master`와 저장된 앱 단축키 대상만 나오며, 현재 오디오 세션이 없는 저장 앱은 `실행 안 됨`으로 표시됩니다. 음소거 버튼이나 전역 단축키로 상태를 바꾸면 해당 상태가 바로 반영되고, 저장 앱의 오디오 세션 시작·종료도 주기적으로 확인합니다.
 
@@ -56,7 +58,7 @@ MutePilot은 약 400ms 간격으로 `GetForegroundWindow`, `GetWindowRect`, `Mon
 
 `Windows 로그인 시 MutePilot 자동 실행`을 ON으로 바꾸면 시작프로그램 폴더나 `HKCU Run` 대신 현재 사용자 전용 Task Scheduler 작업 `MutePilot Startup`을 등록합니다. 이 작업은 현재 사용자가 로그인할 때 `Highest` run level과 `InteractiveToken`으로 현재 MutePilot 실행 파일에 `--background`를 전달합니다. SYSTEM 계정으로 실행하지 않습니다. OFF로 바꾸면 같은 작업을 제거하며, 생성·삭제가 실패하거나 UAC가 취소되면 실제 작업 상태를 다시 읽어 UI에 반영합니다.
 
-`--background` 실행은 메인 창을 띄우지 않지만 tray icon, hotkey, 단독 F키 polling, audio service와 저장된 overlay 설정을 정상 초기화합니다. 사용자는 나중에 tray icon으로 같은 `MainWindow`를 열 수 있습니다. 사용자 SID와 Windows session ID가 포함된 named Mutex로 중복 실행을 막아 두 번째 background 실행은 조용히 끝나고, 두 번째 일반 실행은 이미 실행 중이라는 안내 후 종료됩니다.
+`--background` 실행은 메인 창을 띄우지 않지만 tray icon, hotkey, 사용자 지정 단독 키 polling, audio service와 저장된 overlay 설정을 정상 초기화합니다. 사용자는 나중에 tray icon으로 같은 `MainWindow`를 열 수 있습니다. 사용자 SID와 Windows session ID가 포함된 named Mutex로 중복 실행을 막아 두 번째 background 실행은 조용히 끝나고, 두 번째 일반 실행은 이미 실행 중이라는 안내 후 종료됩니다.
 
 관리자 재실행에서는 새 프로세스가 `--elevated-restart` handoff token으로 기존 Mutex가 풀리기를 기다립니다. UAC 승인이 끝나 새 프로세스 시작에 성공한 경우에만 기존 인스턴스를 정상 종료하므로, UAC를 취소하면 기존 MutePilot과 단일 실행 보호가 그대로 남습니다.
 
@@ -89,7 +91,7 @@ Master Audio는 현재 기본 Windows playback endpoint의 scalar volume과 장�
 * Windows 마스터 음소거/음소거 해제 — 구현 및 실제 동작 수동 검증 완료
 * 활성 Windows 오디오 세션을 사용하는 애플리케이션 감지 — 구현 및 실제 세션 조회 확인 완료
 * 애플리케이션별 음소거/음소거 해제 — 구현 및 실제 동작 수동 검증 완료
-* 사용자 지정 전역 단축키와 토글 동작 — 구현 및 실제 PC 수동 검증 완료
+* 사용자가 직접 고른 키의 generic 전역 단축키와 토글 동작 — 구현 및 자동 검증 완료, 실제 선택 키 게임 검증 필요
 * 여러 애플리케이션 단축키 바인딩 저장 — 구현 완료
 * 프로그램을 다시 실행해도 유지되는 로컬 설정 — 구현 완료, 기본 설정 생성·재로드 확인
 * 선택형 음소거 상태 오버레이 — 고정형 compact HUD 구현 및 SuddenAttack 수동 검증 완료
@@ -111,7 +113,7 @@ Master Audio는 현재 기본 Windows playback endpoint의 scalar volume과 장�
 * Windows Core Audio APIs
 * NAudio.Wasapi 2.3.0
 * Windows `RegisterHotKey`, `UnregisterHotKey`, `WM_HOTKEY`
-* Windows `GetAsyncKeyState` 기반 단독 F키 polling
+* Windows `GetAsyncKeyState` 기반 사용자 선택 단독 키 polling
 * `System.Windows.Forms.NotifyIcon` 기반 시스템 트레이 메뉴
 * Windows Task Scheduler COM API와 `runas` UAC 실행
 * `WindowsIdentity`, `WindowsPrincipal` 기반 관리자 권한 확인
@@ -127,7 +129,7 @@ Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능�
 2. Windows 마스터 음소거/음소거 해제 구현 — 완료, 실제 동작 수동 검증 완료
 3. 활성 애플리케이션 오디오 세션 감지 — 완료, 실제 세션 조회 확인 완료
 4. 애플리케이션별 음소거 토글 구현 — 완료, 실제 동작 수동 검증 완료
-5. 사용자 지정 전역 단축키 추가 — 구현 및 실제 동작 수동 검증 완료
+5. 사용자 지정 전역 단축키 추가 — 기존 F키·modifier 방식 구현 및 실제 동작 수동 검증 완료
 6. 단축키 바인딩과 설정 저장 — 구현 완료
 7. 실제 게임·브라우저 환경에서 단축키 수동 검증 — 완료, 관리자 게임 권한 제한 확인
 8. 선택형 음소거 상태 오버레이 구현 — 고정형 HUD 개선 및 SuddenAttack 수동 검증 완료
@@ -136,7 +138,8 @@ Windows API를 다루는 코드는 UI 코드와 분리하고, 필요한 기능�
 11. Windows 로그인 시 자동 실행, 관리자 권한 UX, background 시작, 단일 실행 보호 — 구현 및 실제 재부팅·로그인 수동 검증 완료
 12. Master·앱별 볼륨 프리셋과 전용 단축키 — 구현 완료
 13. 프리셋 적용 직전의 볼륨·음소거 상태 복원 — 구현 및 SuddenAttack 수동 검증 완료
-14. 최종 UI/아이콘 정리와 Release 배포 구조 준비
+14. 사용자가 직접 고른 키를 virtual-key 기반으로 저장·감시하는 구조 — 구현 및 자동 검증 완료, 실제 선택 키 게임 검증 필요
+15. 최종 UI 디자인, 앱 아이콘, 버전 정보, Release 빌드 및 배포 구조 정리
 
 ## 작성자
 

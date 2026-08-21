@@ -68,6 +68,8 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * Master Audio의 기본 장치 ID·볼륨·음소거 상태와 앱별 runtime session identity·볼륨·음소거 상태를 실행 중에만 보관하는 프리셋 toggle service 추가
 * 같은 앱의 여러 오디오 session이 서로 다른 볼륨·음소거 상태였을 때 session별 원래 상태를 정확히 복원하는 처리 추가
 * 앱 session 구성이 달라지거나 기본 playback endpoint가 바뀌면 이전 기본 상태를 새 대상에 적용하지 않는 무효화 처리 추가
+* 사용자가 입력한 키를 localized 표시 문자열이 아닌 Windows virtual-key와 modifier flags로 저장하는 generic hotkey 표현 추가
+* 이전 JSON의 WPF `key` 값을 virtual-key로 변환해 기존 F키와 modifier 단축키를 그대로 불러오는 호환 converter 추가
 
 ### 변경
 
@@ -76,6 +78,9 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 * 볼륨 프리셋 동작을 매번 고정값을 적용하던 방식에서 프리셋과 적용 직전의 실제 볼륨·음소거 상태를 오가는 방식으로 변경
 * 프리셋 수동 버튼과 전용 단축키가 같은 runtime 기본 상태를 공유하도록 연결하고, 활성 상태의 버튼 문구를 `기본 볼륨으로 복원`으로 변경
 * 프리셋 활성 중 slider를 바꿔도 실제 오디오와 이미 저장한 기본 상태는 유지하고, 복원 뒤 다음 주기부터 새 프리셋 값을 사용하도록 변경
+* 단독 단축키의 F1~F11 제한과 modifier 조합의 영문·숫자 whitelist를 제거하고 입력 창에서 사용자가 누른 일반 키를 같은 경로로 처리하도록 변경
+* 단독 키 polling을 함수 키 전용 분기에서 현재 등록된 virtual-key만 조회하는 generic map으로 변경
+* Escape를 입력 창 취소 전용 키로 쓰지 않고 일반 단축키로 선택할 수 있게 하며, 취소는 명시적인 `취소` 버튼으로 유지
 
 마스터·앱별 음소거와 Whale 전역 단축키를 실제 Windows PC에서 수동 검증했습니다. SuddenAttack foreground에서는 `Ctrl + Alt + F8`이 일반 권한에서도 동작했고, 단독 F7/F8은 MutePilot과 게임의 관리자 권한 수준을 맞췄을 때 동작했습니다. F8을 누르고 있어도 한 번만 전환되는 repeat prevention도 확인했습니다.
 
@@ -88,3 +93,5 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 일반 GUI의 startup UI와 권한 표시, `--background` 창 숨김, overlay OFF/ON 복원, normal/background 중복 실행 종료, Mutex handoff 뒤 단일 process·tray 유지를 검증했습니다. 이후 실제 PC에서 관리자 권한 재시작과 `Highest` 자동 시작 작업을 확인했고, Windows 재부팅·로그인 뒤 MutePilot이 관리자 권한의 background/tray 상태로 자동 실행되는 것도 수동 검증했습니다.
 
 안전한 무음 Windows 오디오 session으로 일반 상태와 원래 음소거 상태 복원, 프리셋 중 별도 음소거, 활성 중 slider 변경, session 재시작, 서로 다른 두 session의 개별 복원을 확인했습니다. 실제 SuddenAttack에서도 음소거 단축키, 볼륨 프리셋 toggle, 원래 볼륨과 원래 음소거 상태 복원이 정상 동작했습니다. Tray에 숨긴 상태와 자동 시작된 관리자 권한 MutePilot에서도 단축키가 동작하고 HUD가 실제 상태를 갱신하는 것을 수동 확인했습니다.
+
+W, S, Space, Escape와 modifier 조합이 같은 virtual-key 표현으로 만들어지는 것을 자동 확인했습니다. 중복 거부, 단독 키 변경·삭제 시 polling map과 latch 정리, 하나의 polling task 유지, 실제 `RegisterHotKey` 경로, 이전 F8 JSON 호환도 검증했습니다. 사용자가 직접 선택한 새 키의 SuddenAttack 동작은 아직 수동 검증하지 않았습니다.

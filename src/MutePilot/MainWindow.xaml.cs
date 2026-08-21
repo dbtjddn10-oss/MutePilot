@@ -7,7 +7,9 @@ using System.Windows.Threading;
 using MutePilot.Audio;
 using MutePilot.Hotkeys;
 using MutePilot.Overlay;
+using MutePilot.Security;
 using MutePilot.Settings;
+using MutePilot.Startup;
 using MutePilot.Tray;
 
 namespace MutePilot;
@@ -19,6 +21,8 @@ public partial class MainWindow : Window
     private readonly IAudioService _audioService = new AudioService();
     private readonly IHotkeyService _hotkeyService = new HotkeyService();
     private readonly ISettingsService _settingsService = new SettingsService();
+    private readonly IStartupService _startupService = new StartupService();
+    private readonly IPrivilegeService _privilegeService = new PrivilegeService();
     private readonly IOverlayService _overlayService;
     private readonly ITrayService _trayService;
     private readonly DispatcherTimer _overlayRefreshTimer;
@@ -31,6 +35,8 @@ public partial class MainWindow : Window
     private bool _isApplyingOverlayConfiguration;
     private bool _isClosed;
     private bool _isRealExitRequested;
+    private bool _servicesStarted;
+    private StartupStatus _startupStatus = new(StartupTaskState.Disabled);
     private long _audioStateRevision;
 
     public MainWindow()
@@ -117,6 +123,8 @@ public partial class MainWindow : Window
 
         ShowHotkeyWarnings(warnings);
         UpdateMasterHotkeyDisplay();
+        RefreshStartupStatus();
+        UpdatePrivilegeStatus();
     }
 
     protected override void OnClosed(EventArgs e)
@@ -135,12 +143,20 @@ public partial class MainWindow : Window
         base.OnClosed(e);
     }
 
-    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    internal void StartServices()
     {
+        if (_servicesStarted)
+        {
+            return;
+        }
+
+        _servicesStarted = true;
         RefreshMasterAudioState();
         RefreshApplicationSessions();
         _overlayRefreshTimer.Start();
     }
+
+    private void MainWindow_Loaded(object sender, RoutedEventArgs e) => StartServices();
 
     private void MasterMuteButton_Click(object sender, RoutedEventArgs e)
     {
@@ -198,6 +214,48 @@ public partial class MainWindow : Window
             UpdateOverlaySettingDisplay();
             ShowHotkeyError("오버레이 설정을 저장하지 못했습니다.");
         }
+    }
+
+    private async void StartupToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        var enableStartup = !_startupStatus.TaskExists;
+        StartupToggleButton.IsEnabled = false;
+        RestartAsAdministratorButton.IsEnabled = false;
+        StartupErrorText.Visibility = Visibility.Collapsed;
+
+        var result = await _startupService.SetEnabledAsync(enableStartup);
+        _startupStatus = result.Status;
+        UpdateStartupStatusDisplay();
+        UpdatePrivilegeStatus();
+
+        if (result.Outcome != StartupChangeOutcome.Succeeded)
+        {
+            StartupErrorText.Text = result.Message ??
+                "Windows 시작 설정을 변경하지 못했습니다.";
+            StartupErrorText.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void RestartAsAdministratorButton_Click(object sender, RoutedEventArgs e)
+    {
+        StartupErrorText.Visibility = Visibility.Collapsed;
+        var result = _privilegeService.RestartAsAdministrator(!IsVisible);
+
+        if (result.Outcome == ElevationRestartOutcome.Started)
+        {
+            RequestRealExit();
+            return;
+        }
+
+        if (result.Outcome == ElevationRestartOutcome.AlreadyElevated)
+        {
+            UpdatePrivilegeStatus();
+            return;
+        }
+
+        StartupErrorText.Text = result.Message ??
+            "관리자 권한으로 다시 시작하지 못했습니다.";
+        StartupErrorText.Visibility = Visibility.Visible;
     }
 
     private void TrayService_OpenRequested(object? sender, EventArgs e) =>
@@ -704,6 +762,67 @@ public partial class MainWindow : Window
             ? "음소거 상태 오버레이를 끕니다."
             : "음소거 상태 오버레이를 켭니다.";
         _trayService.SetOverlayEnabled(_settings.OverlayEnabled);
+    }
+
+    private void RefreshStartupStatus()
+    {
+        _startupStatus = _startupService.GetStatus();
+        UpdateStartupStatusDisplay();
+    }
+
+    private void UpdateStartupStatusDisplay()
+    {
+        switch (_startupStatus.State)
+        {
+            case StartupTaskState.Disabled:
+                StartupToggleButton.Content = "OFF";
+                StartupToggleButton.IsEnabled = true;
+                StartupDetailText.Text =
+                    "ON으로 바꾸면 UAC 확인 후 현재 실행 파일을 highest privileges 로그인 작업으로 등록합니다.";
+                break;
+
+            case StartupTaskState.Enabled:
+                StartupToggleButton.Content = "ON";
+                StartupToggleButton.IsEnabled = true;
+                StartupDetailText.Text =
+                    "로그인 시 --background로 실행합니다. 개발 빌드 위치가 바뀌면 OFF/ON으로 다시 등록해 주세요.";
+                break;
+
+            case StartupTaskState.ConfigurationMismatch:
+                StartupToggleButton.Content = "ON";
+                StartupToggleButton.IsEnabled = true;
+                StartupDetailText.Text =
+                    "등록 경로나 실행 조건이 현재 앱과 다릅니다. OFF 후 ON으로 다시 등록해 주세요.";
+                break;
+
+            default:
+                StartupToggleButton.Content = "확인 실패";
+                StartupToggleButton.IsEnabled = false;
+                StartupDetailText.Text = _startupStatus.DetailMessage ??
+                    "Windows 자동 시작 작업 상태를 확인하지 못했습니다.";
+                break;
+        }
+    }
+
+    private void UpdatePrivilegeStatus()
+    {
+        try
+        {
+            var isElevated = _privilegeService.IsElevated;
+            PrivilegeStatusText.Text = isElevated
+                ? "현재 권한: 관리자 권한"
+                : "현재 권한: 일반 권한";
+            RestartAsAdministratorButton.Content = isElevated
+                ? "관리자 권한으로 실행 중"
+                : "관리자 권한으로 다시 시작";
+            RestartAsAdministratorButton.IsEnabled = !isElevated;
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            PrivilegeStatusText.Text = "현재 권한: 확인할 수 없음";
+            RestartAsAdministratorButton.IsEnabled = false;
+        }
     }
 
     private void UpdateMasterHotkeyDisplay()

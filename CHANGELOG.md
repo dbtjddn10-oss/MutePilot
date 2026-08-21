@@ -94,4 +94,6 @@ MutePilot에서 실제로 완료한 주요 변경 사항을 기록합니다.
 
 안전한 무음 Windows 오디오 session으로 일반 상태와 원래 음소거 상태 복원, 프리셋 중 별도 음소거, 활성 중 slider 변경, session 재시작, 서로 다른 두 session의 개별 복원을 확인했습니다. 실제 SuddenAttack에서도 음소거 단축키, 볼륨 프리셋 toggle, 원래 볼륨과 원래 음소거 상태 복원이 정상 동작했습니다. Tray에 숨긴 상태와 자동 시작된 관리자 권한 MutePilot에서도 단축키가 동작하고 HUD가 실제 상태를 갱신하는 것을 수동 확인했습니다.
 
-W, S, Space, Escape와 modifier 조합이 같은 virtual-key 표현으로 만들어지는 것을 자동 확인했습니다. 중복 거부, 단독 키 변경·삭제 시 polling map과 latch 정리, 하나의 polling task 유지, 실제 `RegisterHotKey` 경로, 이전 F8 JSON 호환도 검증했습니다. 사용자가 직접 선택한 새 키의 SuddenAttack 동작은 아직 수동 검증하지 않았습니다.
+W, S, Space, Escape와 modifier 조합이 같은 virtual-key 표현으로 만들어지는 것을 자동 확인했습니다. 중복 거부, 단독 키 변경·삭제 시 polling map과 latch 정리, 하나의 polling task 유지, 실제 `RegisterHotKey` 경로, 이전 F8 JSON 호환도 검증했습니다.
+
+실제 PC와 SuddenAttack에서 사용자가 직접 고른 단축키가 정상 동작하는 것을 수동 확인했습니다. 트레이에 숨긴 상태의 단축키와 오버레이, 볼륨 프리셋 전환, 원래 볼륨·음소거 상태 복원이 유지됐습니다. 단축키 변경 뒤에는 이전 키가 멈추고 새 키만 동작했으며, MutePilot 재시작 뒤에도 설정이 복원됐습니다.

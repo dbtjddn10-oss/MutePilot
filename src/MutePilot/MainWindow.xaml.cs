@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using MutePilot.Audio;
 using MutePilot.Hotkeys;
+using MutePilot.Overlay;
 using MutePilot.Settings;
 
 namespace MutePilot;
@@ -13,11 +14,16 @@ public partial class MainWindow : Window
     private readonly IAudioService _audioService = new AudioService();
     private readonly IHotkeyService _hotkeyService = new HotkeyService();
     private readonly ISettingsService _settingsService = new SettingsService();
+    private readonly IOverlayService _overlayService;
     private AppSettings _settings = new();
     private bool _hotkeysInitialized;
     private bool _isCapturingHotkey;
 
-    public MainWindow() => InitializeComponent();
+    public MainWindow()
+    {
+        InitializeComponent();
+        _overlayService = new OverlayService(Dispatcher);
+    }
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -37,6 +43,8 @@ public partial class MainWindow : Window
 
             var loadResult = _settingsService.Load();
             _settings = loadResult.Settings;
+            _overlayService.SetEnabled(_settings.OverlayEnabled);
+            UpdateOverlaySettingDisplay();
 
             if (!string.IsNullOrWhiteSpace(loadResult.WarningMessage))
             {
@@ -75,6 +83,7 @@ public partial class MainWindow : Window
     {
         _hotkeyService.HotkeyPressed -= HotkeyService_HotkeyPressed;
         _hotkeyService.Dispose();
+        _overlayService.Dispose();
         base.OnClosed(e);
     }
 
@@ -91,7 +100,9 @@ public partial class MainWindow : Window
 
         try
         {
-            UpdateMasterAudioState(_audioService.ToggleMasterMuteState());
+            var isMuted = _audioService.ToggleMasterMuteState();
+            UpdateMasterAudioState(isMuted);
+            _overlayService.ShowMuteState("Master Audio", isMuted);
         }
         catch (Exception exception)
         {
@@ -109,6 +120,28 @@ public partial class MainWindow : Window
     private void MasterHotkeyRemoveButton_Click(object sender, RoutedEventArgs e) =>
         RemoveHotkey(HotkeyBinding.MasterTargetId);
 
+    private void OverlayToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        var previousSettings = CloneSettings(_settings);
+        _settings.OverlayEnabled = !_settings.OverlayEnabled;
+
+        try
+        {
+            _settingsService.Save(_settings);
+            _overlayService.SetEnabled(_settings.OverlayEnabled);
+            UpdateOverlaySettingDisplay();
+            HotkeyErrorText.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            _settings = previousSettings;
+            _overlayService.SetEnabled(_settings.OverlayEnabled);
+            UpdateOverlaySettingDisplay();
+            ShowHotkeyError("오버레이 설정을 저장하지 못했습니다.");
+        }
+    }
+
     private void ApplicationRefreshButton_Click(object sender, RoutedEventArgs e) =>
         RefreshApplicationSessions();
 
@@ -125,7 +158,8 @@ public partial class MainWindow : Window
 
         try
         {
-            _audioService.ToggleApplicationMute(applicationKey);
+            var session = _audioService.ToggleApplicationMute(applicationKey);
+            _overlayService.ShowMuteState(session.ApplicationName, session.IsMuted);
             RefreshApplicationSessions();
         }
         catch (Exception exception)
@@ -297,11 +331,14 @@ public partial class MainWindow : Window
         {
             if (e.Binding.TargetType == HotkeyTargetType.MasterAudio)
             {
-                UpdateMasterAudioState(_audioService.ToggleMasterMuteState());
+                var isMuted = _audioService.ToggleMasterMuteState();
+                UpdateMasterAudioState(isMuted);
+                _overlayService.ShowMuteState("Master Audio", isMuted);
             }
             else if (!string.IsNullOrWhiteSpace(e.Binding.ProcessName))
             {
-                _audioService.ToggleApplicationMute(e.Binding.ProcessName);
+                var session = _audioService.ToggleApplicationMute(e.Binding.ProcessName);
+                _overlayService.ShowMuteState(session.ApplicationName, session.IsMuted);
                 RefreshApplicationSessions();
             }
         }
@@ -468,9 +505,18 @@ public partial class MainWindow : Window
 
     private static AppSettings CloneSettings(AppSettings settings) => new()
     {
+        OverlayEnabled = settings.OverlayEnabled,
         MasterHotkey = settings.MasterHotkey,
         ApplicationBindings = settings.ApplicationBindings.ToList()
     };
+
+    private void UpdateOverlaySettingDisplay()
+    {
+        OverlayToggleButton.Content = _settings.OverlayEnabled ? "ON" : "OFF";
+        OverlayToggleButton.ToolTip = _settings.OverlayEnabled
+            ? "음소거 상태 오버레이를 끕니다."
+            : "음소거 상태 오버레이를 켭니다.";
+    }
 
     private void UpdateMasterHotkeyDisplay()
     {

@@ -1,20 +1,20 @@
 <Window x:Class="MutePilot.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MutePilot" Width="1180" Height="820" MinWidth="980" MinHeight="700"
+        Title="MutePilot" Width="1100" Height="740" MinWidth="920" MinHeight="640"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}"
         FontFamily="Segoe UI" Loaded="MainWindow_Loaded">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="216" />
+            <ColumnDefinition Width="210" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}"
                 BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="0,0,1,0">
-            <Grid Margin="18,22,18,18">
+            <Grid Margin="18,20,18,17">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -22,39 +22,42 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <StackPanel>
-                    <Border Width="46" Height="46" HorizontalAlignment="Left"
-                            Background="{DynamicResource AccentSoftBrush}" CornerRadius="13">
+                    <Border Width="44" Height="44" HorizontalAlignment="Left"
+                            Background="{DynamicResource AccentSoftBrush}" CornerRadius="12">
                         <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   FontSize="25" FontWeight="Bold"
+                                   FontSize="24" FontWeight="Bold"
                                    Foreground="{DynamicResource AccentBrush}" Text="M" />
                     </Border>
-                    <TextBlock Margin="0,12,0,0" FontSize="22" FontWeight="Bold" Text="MutePilot" />
-                    <TextBlock Margin="0,4,0,0" FontSize="11"
+                    <TextBlock Margin="0,10,0,0" FontSize="21" FontWeight="Bold" Text="MutePilot" />
+                    <TextBlock Margin="0,3,0,0" FontSize="10.5"
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                Text="Windows Audio Control" />
                 </StackPanel>
-                <StackPanel Grid.Row="1" Margin="0,30,0,0">
-                    <TextBlock Margin="12,0,0,8" FontSize="10" FontWeight="SemiBold"
+
+                <StackPanel Grid.Row="1" Margin="0,26,0,0">
+                    <TextBlock Margin="12,0,0,7" FontSize="10" FontWeight="SemiBold"
                                Foreground="{DynamicResource MutedTextBrush}" Text="NAVIGATION" />
-                    <Button Style="{StaticResource SidebarButtonStyle}" Click="SidebarNavigationButton_Click"
-                            Tag="Home" Content="⌂   홈 / 대시보드" />
-                    <Button Style="{StaticResource SidebarButtonStyle}" Click="SidebarNavigationButton_Click"
-                            Tag="Applications" Content="▦   애플리케이션" />
-                    <Button Style="{StaticResource SidebarButtonStyle}" Click="SidebarNavigationButton_Click"
-                            Tag="Settings" Content="⚙   실행 설정" />
-                    <Button Style="{StaticResource SidebarButtonStyle}" Click="SidebarNavigationButton_Click"
-                            Tag="About" Content="ⓘ   정보" />
+                    <Button x:Name="DashboardNavigationButton"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Background="{DynamicResource SidebarSelectedBrush}"
+                            Click="SidebarNavigationButton_Click" Tag="Dashboard"
+                            Content="⌂   홈 / 대시보드" />
+                    <Button x:Name="SettingsNavigationButton"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Click="SidebarNavigationButton_Click" Tag="Settings"
+                            Content="⚙   실행 설정" />
                 </StackPanel>
+
                 <StackPanel Grid.Row="3">
                     <TextBlock Margin="4,0,0,7" FontSize="11"
                                Foreground="{DynamicResource SecondaryTextBrush}" Text="화면 테마" />
-                    <ComboBox x:Name="ThemeComboBox" Height="34"
+                    <ComboBox x:Name="ThemeComboBox" Style="{StaticResource ThemeSelectorStyle}"
                               SelectionChanged="ThemeComboBox_SelectionChanged">
-                        <ComboBoxItem Tag="Dark" Content="기본 버전 (다크모드)" />
-                        <ComboBoxItem Tag="Light" Content="화이트모드" />
-                        <ComboBoxItem Tag="Pink" Content="핑크모드" />
+                        <ComboBoxItem Tag="Dark" Content="기본 (다크)" />
+                        <ComboBoxItem Tag="Light" Content="화이트" />
+                        <ComboBoxItem Tag="Pink" Content="핑크" />
                     </ComboBox>
-                    <TextBlock Margin="4,12,0,0" FontSize="11"
+                    <TextBlock Margin="4,11,0,0" FontSize="10.5"
                                Foreground="{DynamicResource MutedTextBrush}" Text="MutePilot v0.8" />
                     <TextBlock Margin="4,3,0,0" FontSize="11"
                                Foreground="{DynamicResource SecondaryTextBrush}" Text="Made by 유성우" />
@@ -62,383 +65,461 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Column="1" Margin="26,20,28,18">
+        <Grid Grid.Column="1" Margin="24,17,26,17">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            <Grid Margin="2,0,2,16">
+            <Grid Margin="2,0,2,13">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock FontSize="25" FontWeight="SemiBold" Text="오디오 대시보드" />
-                    <TextBlock Margin="0,5,0,0" FontSize="12"
+                    <TextBlock x:Name="PageTitleText" FontSize="24" FontWeight="SemiBold"
+                               Text="오디오 대시보드" />
+                    <TextBlock x:Name="PageDescriptionText" Margin="0,4,0,0" FontSize="11.5"
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                Text="마스터와 애플리케이션 오디오를 한곳에서 관리합니다." />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Padding="10,6" Background="{DynamicResource AccentSoftBrush}" CornerRadius="12">
-                        <TextBlock x:Name="PrivilegeStatusChipText" FontSize="11"
-                                   Foreground="{DynamicResource AccentBrush}" Text="권한 확인 중" />
-                    </Border>
-                    <Border Margin="8,0,0,0" Padding="10,6"
-                            Background="{DynamicResource AccentSoftBrush}" CornerRadius="12">
-                        <TextBlock x:Name="OverlayStatusChipText" FontSize="11"
-                                   Foreground="{DynamicResource AccentBrush}" Text="오버레이 확인 중" />
-                    </Border>
+                    <Button x:Name="AdminQuickButton" Margin="0,0,7,0"
+                            Style="{StaticResource QuickControlButtonStyle}"
+                            Click="AdminQuickButton_Click" Content="♢ 관리자 OFF"
+                            ToolTip="권한 변경은 MutePilot 재시작이 필요합니다." />
+                    <Button x:Name="OverlayQuickButton"
+                            Style="{StaticResource QuickControlButtonStyle}"
+                            Click="OverlayQuickButton_Click" Content="오버레이 ON" />
                 </StackPanel>
             </Grid>
 
-            <ScrollViewer x:Name="DashboardScrollViewer" Grid.Row="1"
-                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Margin="2,0,8,12">
-                    <TextBlock x:Name="HotkeyErrorText" Margin="0,0,0,12" Padding="12,8"
-                               Background="{DynamicResource ElevatedPanelBrush}"
-                               FontSize="12" Foreground="{DynamicResource DangerBrush}"
-                               TextWrapping="Wrap" Visibility="Collapsed" />
-                    <Border x:Name="HomeSection" Style="{StaticResource CardStyle}">
+            <Grid Grid.Row="1">
+                <TextBlock x:Name="HotkeyErrorText" Panel.ZIndex="2" Margin="0,0,0,8"
+                           Padding="12,7" VerticalAlignment="Top"
+                           Background="{DynamicResource ElevatedPanelBrush}"
+                           FontSize="12" Foreground="{DynamicResource DangerBrush}"
+                           TextWrapping="Wrap" Visibility="Collapsed" />
+
+                <Grid x:Name="DashboardPage">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border Style="{StaticResource CardStyle}" Padding="17">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.05*" />
-                                <ColumnDefinition Width="1.35*" />
+                                <ColumnDefinition Width="0.92*" />
+                                <ColumnDefinition Width="1.48*" />
                             </Grid.ColumnDefinitions>
-                            <StackPanel Margin="0,0,24,0">
-                                <TextBlock FontSize="11" FontWeight="SemiBold"
+                            <StackPanel Margin="0,0,20,0">
+                                <TextBlock FontSize="10.5" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AccentBrush}" Text="MASTER AUDIO" />
-                                <TextBlock Margin="0,7,0,0" FontSize="20" FontWeight="SemiBold"
+                                <TextBlock Margin="0,5,0,0" FontSize="19" FontWeight="SemiBold"
                                            Text="Windows 전체 소리" />
-                                <TextBlock x:Name="MasterAudioStatusText" Margin="0,12,0,0" FontSize="13"
+                                <TextBlock x:Name="MasterAudioStatusText" Margin="0,10,0,0" FontSize="12.5"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
-                                           Text="현재 상태: 확인 중" TextWrapping="Wrap" />
-                                <TextBlock x:Name="MasterVolumeStatusText" Margin="0,5,0,16" FontSize="13"
+                                           Text="현재 상태: 확인 중" />
+                                <TextBlock x:Name="MasterVolumeStatusText" Margin="0,4,0,12" FontSize="12.5"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
-                                           Text="현재 볼륨: 확인 중" TextWrapping="Wrap" />
-                                <Button x:Name="MasterMuteButton" Width="168" Height="36"
+                                           Text="현재 볼륨: 확인 중" />
+                                <Button x:Name="MasterMuteButton" Width="158" Height="34"
                                         HorizontalAlignment="Left" Style="{StaticResource PrimaryButtonStyle}"
                                         Click="MasterMuteButton_Click" Content="상태 확인 중" IsEnabled="False" />
-                                <TextBlock x:Name="AudioErrorText" Margin="0,12,0,0" FontSize="12"
+                                <TextBlock x:Name="AudioErrorText" Margin="0,8,0,0" FontSize="11"
                                            Foreground="{DynamicResource DangerBrush}"
                                            TextWrapping="Wrap" Visibility="Collapsed" />
                             </StackPanel>
-                            <Border Grid.Column="1" Padding="16"
-                                    Background="{DynamicResource ElevatedPanelBrush}" CornerRadius="10">
-                                <StackPanel>
-                                    <TextBlock FontSize="13" FontWeight="SemiBold" Text="빠른 설정" />
-                                    <Grid Margin="0,12,0,0">
+
+                            <Border Grid.Column="1" Padding="13"
+                                    Background="{DynamicResource ElevatedPanelBrush}" CornerRadius="9">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel>
-                                            <TextBlock FontWeight="SemiBold" Text="음소거 단축키" />
-                                            <TextBlock x:Name="MasterHotkeyText" Margin="0,3,8,0" FontSize="12"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}"
-                                                       Text="설정 안 됨" />
+                                            <TextBlock FontSize="12" FontWeight="SemiBold" Text="음소거 단축키" />
+                                            <TextBlock x:Name="MasterHotkeyText" Margin="0,2,8,0" FontSize="11.5"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" Text="설정 안 됨" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                            <Button x:Name="MasterHotkeyButton" Height="32"
+                                            <Button x:Name="MasterHotkeyButton" Height="29" Padding="10,4"
                                                     Click="MasterHotkeyButton_Click" Content="단축키 설정" />
-                                            <Button x:Name="MasterHotkeyRemoveButton" Height="32" Margin="7,0,0,0"
-                                                    Click="MasterHotkeyRemoveButton_Click" Content="삭제"
-                                                    Visibility="Collapsed" />
+                                            <Button x:Name="MasterHotkeyRemoveButton" Height="29" Margin="5,0,0,0"
+                                                    Padding="9,4" Click="MasterHotkeyRemoveButton_Click"
+                                                    Content="삭제" Visibility="Collapsed" />
                                         </StackPanel>
                                     </Grid>
-                                    <TextBlock Margin="0,16,0,0" FontWeight="SemiBold" Text="볼륨 프리셋" />
-                                    <TextBlock Margin="0,3,0,0" FontSize="11"
-                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                               Text="프리셋 적용 직전의 소리 상태로 다시 복원할 수 있습니다."
-                                               TextWrapping="Wrap" />
-                                    <Grid Margin="0,9,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="62" />
-                                            <ColumnDefinition Width="22" />
-                                        </Grid.ColumnDefinitions>
-                                        <Slider x:Name="MasterVolumeSlider" Minimum="0" Maximum="100"
-                                                TickFrequency="1" IsSnapToTickEnabled="True"
-                                                ValueChanged="MasterVolumeSlider_ValueChanged" />
-                                        <TextBox x:Name="MasterVolumeInputTextBox" Grid.Column="1" Height="32"
-                                                 Margin="10,0,0,0" HorizontalContentAlignment="Right"
-                                                 TextChanged="MasterVolumeInputTextBox_TextChanged"
-                                                 KeyDown="MasterVolumeInputTextBox_KeyDown" Text="50" />
-                                        <TextBlock Grid.Column="2" Margin="5,0,0,0" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}" Text="%" />
-                                    </Grid>
-                                    <TextBlock x:Name="MasterVolumeInputErrorText" Margin="0,5,0,0"
-                                               FontSize="11" Foreground="{DynamicResource DangerBrush}"
-                                               Text="0~100 사이의 정수를 입력해 주세요."
-                                               Visibility="Collapsed" />
-                                    <TextBlock x:Name="MasterVolumePresetText" Margin="0,5,0,0" FontSize="11"
-                                               Foreground="{DynamicResource SecondaryTextBrush}" Text="설정값: 50%" />
-                                    <TextBlock x:Name="MasterVolumeHotkeyText" Margin="0,8,0,0" FontSize="12"
-                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                               Text="볼륨 단축키: 설정 안 됨" />
-                                    <Grid Margin="0,8,0,0">
+
+                                    <Grid Grid.Row="1" Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button x:Name="MasterVolumeHotkeyButton" Height="32"
-                                                    Click="MasterVolumeHotkeyButton_Click" Content="단축키 설정" />
-                                            <Button x:Name="MasterVolumeHotkeyRemoveButton" Height="32" Margin="7,0,0,0"
-                                                    Click="MasterVolumeHotkeyRemoveButton_Click" Content="삭제"
-                                                    Visibility="Collapsed" />
+                                        <StackPanel>
+                                            <TextBlock FontSize="12" FontWeight="SemiBold" Text="볼륨 프리셋 단축키" />
+                                            <TextBlock x:Name="MasterVolumeHotkeyText" Margin="0,2,8,0" FontSize="11.5"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                                       Text="볼륨 단축키: 설정 안 됨" />
                                         </StackPanel>
-                                        <Button x:Name="MasterVolumeApplyButton" Grid.Column="1" Height="32"
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <Button x:Name="MasterVolumeHotkeyButton" Height="29" Padding="10,4"
+                                                    Click="MasterVolumeHotkeyButton_Click" Content="단축키 설정" />
+                                            <Button x:Name="MasterVolumeHotkeyRemoveButton" Height="29" Margin="5,0,0,0"
+                                                    Padding="9,4" Click="MasterVolumeHotkeyRemoveButton_Click"
+                                                    Content="삭제" Visibility="Collapsed" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid Grid.Row="2" Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="58" />
+                                            <ColumnDefinition Width="18" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Slider x:Name="MasterVolumeSlider" Minimum="0" Maximum="100"
+                                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                                ValueChanged="MasterVolumeSlider_ValueChanged" />
+                                        <TextBox x:Name="MasterVolumeInputTextBox" Grid.Column="1" Height="30"
+                                                 Margin="8,0,0,0" HorizontalContentAlignment="Right"
+                                                 TextChanged="MasterVolumeInputTextBox_TextChanged"
+                                                 KeyDown="MasterVolumeInputTextBox_KeyDown" Text="50" />
+                                        <TextBlock Grid.Column="2" Margin="4,0,0,0" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}" Text="%" />
+                                        <Button x:Name="MasterVolumeApplyButton" Grid.Column="3" Height="30"
+                                                Margin="8,0,0,0" Padding="11,4"
                                                 Style="{StaticResource PrimaryButtonStyle}"
                                                 Click="MasterVolumeApplyButton_Click" Content="50%로 전환" />
+                                        <TextBlock x:Name="MasterVolumePresetText" Grid.Column="0"
+                                                   Margin="0,25,0,0" FontSize="10"
+                                                   Foreground="{DynamicResource MutedTextBrush}" Text="설정값: 50%" />
+                                        <TextBlock x:Name="MasterVolumeInputErrorText" Grid.ColumnSpan="4"
+                                                   Margin="0,31,0,0" FontSize="10"
+                                                   Foreground="{DynamicResource DangerBrush}"
+                                                   Text="0~100 사이의 정수를 입력해 주세요."
+                                                   Visibility="Collapsed" />
                                     </Grid>
-                                </StackPanel>
+                                </Grid>
                             </Border>
                         </Grid>
                     </Border>
 
-                    <Border x:Name="ApplicationsSection" Margin="0,14,0,0"
-                            Style="{StaticResource CardStyle}">
-                        <StackPanel>
+                    <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="15">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
-                                    <TextBlock FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource AccentBrush}" Text="APPLICATIONS" />
-                                    <TextBlock Margin="0,6,0,0" FontSize="19" FontWeight="SemiBold"
+                                    <TextBlock FontSize="10.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AccentBrush}" Text="APPLICATION AUDIO" />
+                                    <TextBlock Margin="0,3,0,0" FontSize="17" FontWeight="SemiBold"
                                                Text="애플리케이션 오디오" />
-                                    <TextBlock Margin="0,4,12,0" FontSize="12"
+                                    <TextBlock Margin="0,2,12,0" FontSize="10.5"
                                                Foreground="{DynamicResource SecondaryTextBrush}"
-                                               Text="활성 오디오 세션과 저장된 음소거·볼륨 프리셋을 관리합니다." />
+                                               Text="원하는 애플리케이션이 보이지 않으면 해당 애플리케이션을 실행해 소리가 재생된 뒤 새로고침을 눌러주세요."
+                                               TextWrapping="Wrap" />
                                 </StackPanel>
-                                <Button x:Name="ApplicationRefreshButton" Grid.Column="1" Height="32"
-                                        VerticalAlignment="Top" Click="ApplicationRefreshButton_Click"
-                                        Content="새로고침" />
+                                <Button x:Name="ApplicationRefreshButton" Grid.Column="1" Height="30"
+                                        VerticalAlignment="Top" Padding="11,4"
+                                        Click="ApplicationRefreshButton_Click" Content="새로고침" />
                             </Grid>
-                            <TextBlock x:Name="ApplicationErrorText" Margin="0,12,0,0" FontSize="12"
-                                       Foreground="{DynamicResource DangerBrush}"
-                                       TextWrapping="Wrap" Visibility="Collapsed" />
-                            <TextBlock x:Name="ApplicationEmptyText" Padding="0,18"
-                                       HorizontalAlignment="Center" FontSize="13"
-                                       Foreground="{DynamicResource SecondaryTextBrush}"
-                                       Text="활성 세션이나 저장된 앱 설정이 없습니다." Visibility="Collapsed" />
-                            <ItemsControl x:Name="ApplicationsItemsControl" Margin="0,14,0,0">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Margin="0,0,0,10" Padding="15"
-                                                Background="{DynamicResource ElevatedPanelBrush}"
-                                                BorderBrush="{DynamicResource PanelBorderBrush}"
-                                                BorderThickness="1" CornerRadius="9">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="190" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Margin="0,0,18,0">
-                                                    <TextBlock FontSize="15" FontWeight="SemiBold"
-                                                               Text="{Binding ApplicationName}"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               ToolTip="{Binding ApplicationName}" />
-                                                    <TextBlock Margin="0,5,0,0" FontSize="11"
-                                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                                               Text="{Binding ProcessIdText}" TextWrapping="Wrap" />
-                                                    <TextBlock Margin="0,7,0,0" FontSize="12"
-                                                               Foreground="{DynamicResource SuccessBrush}"
-                                                               Text="{Binding StatusText}" />
-                                                    <TextBlock Margin="0,4,0,0" FontSize="12"
-                                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                                               Text="{Binding VolumeText}" />
-                                                    <Button Height="31" Margin="0,12,0,0"
-                                                            Style="{StaticResource PrimaryButtonStyle}"
-                                                            Click="ApplicationMuteButton_Click"
-                                                            Content="{Binding ToggleButtonText}"
-                                                            IsEnabled="{Binding IsRunning}"
-                                                            Tag="{Binding ApplicationKey}" />
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1">
+                            <Grid Grid.Row="1" Margin="0,8,0,0">
+                                <TextBlock x:Name="ApplicationErrorText" Panel.ZIndex="2" Padding="8,5"
+                                           VerticalAlignment="Top" Background="{DynamicResource ElevatedPanelBrush}"
+                                           FontSize="11" Foreground="{DynamicResource DangerBrush}"
+                                           TextWrapping="Wrap" Visibility="Collapsed" />
+                                <TextBlock x:Name="ApplicationEmptyText" Padding="0,16"
+                                           HorizontalAlignment="Center" FontSize="12"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Text="활성 세션이나 저장된 앱 설정이 없습니다." Visibility="Collapsed" />
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl x:Name="ApplicationsItemsControl">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Margin="0,0,0,7" Padding="11"
+                                                        Background="{DynamicResource ElevatedPanelBrush}"
+                                                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                                                        BorderThickness="1" CornerRadius="8">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="210" />
                                                             <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
-                                                        <StackPanel>
-                                                            <TextBlock FontWeight="SemiBold" Text="음소거 단축키" />
-                                                            <TextBlock Margin="0,3,8,0" FontSize="12"
-                                                                       Foreground="{DynamicResource SecondaryTextBrush}"
-                                                                       Text="{Binding MuteHotkeyText}" />
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                            <Button Height="30" Click="ApplicationHotkeyButton_Click"
-                                                                    Content="{Binding MuteHotkeyButtonText}"
-                                                                    Tag="{Binding ApplicationKey}" />
-                                                            <Button Height="30" Margin="6,0,0,0"
-                                                                    Click="ApplicationHotkeyRemoveButton_Click"
-                                                                    Content="삭제" Tag="{Binding ApplicationKey}"
-                                                                    Visibility="{Binding MuteRemoveButtonVisibility}" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                    <Grid Margin="0,9,0,0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <StackPanel>
-                                                            <TextBlock FontWeight="SemiBold" Text="볼륨 단축키" />
-                                                            <TextBlock Margin="0,3,8,0" FontSize="12"
-                                                                       Foreground="{DynamicResource SecondaryTextBrush}"
-                                                                       Text="{Binding VolumeHotkeyText}" />
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                            <Button Height="30" Click="ApplicationVolumeHotkeyButton_Click"
-                                                                    Content="{Binding VolumeHotkeyButtonText}"
-                                                                    Tag="{Binding ApplicationKey}" />
-                                                            <Button Height="30" Margin="6,0,0,0"
-                                                                    Click="ApplicationVolumeHotkeyRemoveButton_Click"
-                                                                    Content="삭제" Tag="{Binding ApplicationKey}"
-                                                                    Visibility="{Binding VolumeRemoveButtonVisibility}" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                    <Grid Margin="0,12,0,0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="60" />
-                                                            <ColumnDefinition Width="20" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <Slider x:Name="ApplicationVolumeSlider" Minimum="0" Maximum="100"
-                                                                TickFrequency="1" IsSnapToTickEnabled="True"
-                                                                Value="{Binding VolumePercent, Mode=OneWay}"
-                                                                ValueChanged="ApplicationVolumeSlider_ValueChanged"
-                                                                Tag="{Binding ApplicationKey}" />
-                                                        <TextBox x:Name="ApplicationVolumeInputTextBox" Grid.Column="1"
-                                                                 Height="31" Margin="9,0,0,0"
-                                                                 HorizontalContentAlignment="Right"
-                                                                 Text="{Binding VolumePercent, Mode=OneWay}"
-                                                                 TextChanged="ApplicationVolumeInputTextBox_TextChanged"
-                                                                 KeyDown="ApplicationVolumeInputTextBox_KeyDown"
-                                                                 Tag="{Binding ApplicationKey}" />
-                                                        <TextBlock Grid.Column="2" Margin="4,0,0,0"
-                                                                   VerticalAlignment="Center"
-                                                                   Foreground="{DynamicResource SecondaryTextBrush}" Text="%" />
-                                                        <Button Grid.Column="3" Height="31" Margin="9,0,0,0"
-                                                                Style="{StaticResource PrimaryButtonStyle}"
-                                                                Click="ApplicationVolumeApplyButton_Click"
-                                                                Content="{Binding VolumeToggleButtonText}"
-                                                                IsEnabled="{Binding IsRunning}"
-                                                                Tag="{Binding ApplicationKey}" />
-                                                    </Grid>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
+                                                        <Grid Margin="0,0,14,0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="38" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Border Width="32" Height="32" VerticalAlignment="Top"
+                                                                    Background="{DynamicResource AccentSoftBrush}"
+                                                                    CornerRadius="7">
+                                                                <Image Width="26" Height="26" Source="{Binding Icon}"
+                                                                       Stretch="Uniform" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="1">
+                                                                <TextBlock FontSize="13.5" FontWeight="SemiBold"
+                                                                           Text="{Binding ApplicationName}"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           ToolTip="{Binding ApplicationName}" />
+                                                                <TextBlock Margin="0,2,0,0" FontSize="10"
+                                                                           Foreground="{DynamicResource MutedTextBrush}"
+                                                                           Text="{Binding ProcessIdText}"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                                <StackPanel Margin="0,5,0,0" Orientation="Horizontal">
+                                                                    <TextBlock FontSize="10.5"
+                                                                               Foreground="{DynamicResource SuccessBrush}"
+                                                                               Text="{Binding StatusText}" />
+                                                                    <TextBlock Margin="8,0,0,0" FontSize="10.5"
+                                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                                               Text="{Binding VolumeText}" />
+                                                                </StackPanel>
+                                                                <Button Height="27" Margin="0,7,0,0" Padding="8,3"
+                                                                        Style="{StaticResource PrimaryButtonStyle}"
+                                                                        Click="ApplicationMuteButton_Click"
+                                                                        Content="{Binding ToggleButtonText}"
+                                                                        IsEnabled="{Binding IsRunning}"
+                                                                        Tag="{Binding ApplicationKey}" />
+                                                            </StackPanel>
+                                                        </Grid>
 
-                    <Border x:Name="SettingsSection" Margin="0,14,0,0"
-                            Style="{StaticResource CardStyle}">
-                        <StackPanel>
-                            <TextBlock FontSize="11" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource AccentBrush}" Text="SETTINGS" />
-                            <TextBlock Margin="0,6,0,0" FontSize="19" FontWeight="SemiBold"
-                                       Text="오버레이 및 실행 설정" />
-                            <Grid Margin="0,16,0,0">
+                                                        <Grid Grid.Column="1">
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto" />
+                                                                <RowDefinition Height="Auto" />
+                                                            </Grid.RowDefinitions>
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="1*" />
+                                                                    <ColumnDefinition Width="1*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Grid Margin="0,0,10,0">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <StackPanel>
+                                                                        <TextBlock FontSize="11" FontWeight="SemiBold" Text="음소거 단축키" />
+                                                                        <TextBlock Margin="0,1,5,0" FontSize="10.5"
+                                                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                                                   Text="{Binding MuteHotkeyText}" />
+                                                                    </StackPanel>
+                                                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                        <Button Height="27" Padding="8,3"
+                                                                                Click="ApplicationHotkeyButton_Click"
+                                                                                Content="{Binding MuteHotkeyButtonText}"
+                                                                                Tag="{Binding ApplicationKey}" />
+                                                                        <Button Height="27" Margin="4,0,0,0" Padding="7,3"
+                                                                                Click="ApplicationHotkeyRemoveButton_Click"
+                                                                                Content="삭제" Tag="{Binding ApplicationKey}"
+                                                                                Visibility="{Binding MuteRemoveButtonVisibility}" />
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                                <Grid Grid.Column="1">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <StackPanel>
+                                                                        <TextBlock FontSize="11" FontWeight="SemiBold" Text="볼륨 단축키" />
+                                                                        <TextBlock Margin="0,1,5,0" FontSize="10.5"
+                                                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                                                   Text="{Binding VolumeHotkeyText}" />
+                                                                    </StackPanel>
+                                                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                        <Button Height="27" Padding="8,3"
+                                                                                Click="ApplicationVolumeHotkeyButton_Click"
+                                                                                Content="{Binding VolumeHotkeyButtonText}"
+                                                                                Tag="{Binding ApplicationKey}" />
+                                                                        <Button Height="27" Margin="4,0,0,0" Padding="7,3"
+                                                                                Click="ApplicationVolumeHotkeyRemoveButton_Click"
+                                                                                Content="삭제" Tag="{Binding ApplicationKey}"
+                                                                                Visibility="{Binding VolumeRemoveButtonVisibility}" />
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                            </Grid>
+
+                                                            <Grid Grid.Row="1" Margin="0,8,0,0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="55" />
+                                                                    <ColumnDefinition Width="18" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Slider x:Name="ApplicationVolumeSlider" Minimum="0" Maximum="100"
+                                                                        TickFrequency="1" IsSnapToTickEnabled="True"
+                                                                        Value="{Binding VolumePercent, Mode=OneWay}"
+                                                                        ValueChanged="ApplicationVolumeSlider_ValueChanged"
+                                                                        Tag="{Binding ApplicationKey}" />
+                                                                <TextBox x:Name="ApplicationVolumeInputTextBox" Grid.Column="1"
+                                                                         Height="29" Margin="7,0,0,0"
+                                                                         HorizontalContentAlignment="Right"
+                                                                         Text="{Binding VolumePercent, Mode=OneWay}"
+                                                                         TextChanged="ApplicationVolumeInputTextBox_TextChanged"
+                                                                         KeyDown="ApplicationVolumeInputTextBox_KeyDown"
+                                                                         Tag="{Binding ApplicationKey}" />
+                                                                <TextBlock Grid.Column="2" Margin="4,0,0,0" VerticalAlignment="Center"
+                                                                           Foreground="{DynamicResource SecondaryTextBrush}" Text="%" />
+                                                                <Button Grid.Column="3" Height="29" Margin="7,0,0,0" Padding="9,3"
+                                                                        Style="{StaticResource PrimaryButtonStyle}"
+                                                                        Click="ApplicationVolumeApplyButton_Click"
+                                                                        Content="{Binding VolumeToggleButtonText}"
+                                                                        IsEnabled="{Binding IsRunning}"
+                                                                        Tag="{Binding ApplicationKey}" />
+                                                            </Grid>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="0,0,7,0">
+                        <Border Style="{StaticResource CardStyle}" Padding="17">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.2*" />
                                     <ColumnDefinition Width="1*" />
-                                    <ColumnDefinition Width="18" />
-                                    <ColumnDefinition Width="1.35*" />
                                 </Grid.ColumnDefinitions>
-                                <Border Padding="15" Background="{DynamicResource ElevatedPanelBrush}" CornerRadius="9">
-                                    <StackPanel>
-                                        <TextBlock FontWeight="SemiBold" Text="오버레이" />
-                                        <TextBlock Margin="0,5,0,12" FontSize="11"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}"
-                                                   Text="음소거 상태 HUD를 표시하고 위치를 관리합니다."
-                                                   TextWrapping="Wrap" />
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button x:Name="OverlayToggleButton" Width="72" Height="31"
-                                                    Style="{StaticResource PrimaryButtonStyle}"
-                                                    Click="OverlayToggleButton_Click" Content="ON" />
-                                            <Button x:Name="OverlayPositionResetButton" Height="31" Margin="8,0,0,0"
-                                                    Click="OverlayPositionResetButton_Click"
-                                                    Content="위치 초기화" />
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
-                                <Border Grid.Column="2" Padding="15"
-                                        Background="{DynamicResource ElevatedPanelBrush}" CornerRadius="9">
+                                <StackPanel Margin="0,0,22,0">
+                                    <TextBlock FontSize="10.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AccentBrush}" Text="OVERLAY" />
+                                    <TextBlock Margin="0,5,0,0" FontSize="18" FontWeight="SemiBold"
+                                               Text="오버레이 설정" />
+                                    <TextBlock Margin="0,5,0,0" FontSize="11"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               Text="잠금은 위치 이동만 막습니다. 전체 화면 밖에서는 오디오 버튼과 닫기 버튼을 사용할 수 있습니다."
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <StackPanel Margin="0,0,16,0">
-                                            <TextBlock FontWeight="SemiBold" Text="실행 설정" />
-                                            <TextBlock Margin="0,5,0,0" FontSize="11"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}"
-                                                       Text="관리자 프로그램에서 단독 키를 사용하려면 MutePilot도 관리자 권한이 필요할 수 있습니다."
-                                                       TextWrapping="Wrap" />
-                                            <TextBlock x:Name="StartupDetailText" Margin="0,6,0,0" FontSize="11"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}"
-                                                       TextWrapping="Wrap" />
-                                            <TextBlock x:Name="StartupErrorText" Margin="0,7,0,0" FontSize="12"
-                                                       Foreground="{DynamicResource DangerBrush}"
-                                                       TextWrapping="Wrap" Visibility="Collapsed" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Width="250">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock VerticalAlignment="Center"
-                                                           Text="Windows 로그인 시 자동 실행" TextWrapping="Wrap" />
-                                                <Button x:Name="StartupToggleButton" Grid.Column="1" Width="64" Height="31"
-                                                        Margin="10,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
-                                                        Click="StartupToggleButton_Click"
-                                                        Content="확인 중" IsEnabled="False" />
-                                            </Grid>
-                                            <TextBlock x:Name="PrivilegeStatusText" Margin="0,10,0,0" FontSize="12"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}"
-                                                       Text="현재 실행 권한: 확인 중" />
-                                            <Button x:Name="RestartAsAdministratorButton" Height="32" Margin="0,8,0,0"
-                                                    Click="RestartAsAdministratorButton_Click"
-                                                    Content="MutePilot을 관리자 권한으로 재시작" />
-                                        </StackPanel>
+                                        <TextBlock VerticalAlignment="Center" Text="오버레이 표시" />
+                                        <Button x:Name="OverlayToggleButton" Grid.Column="1" Width="70" Height="30"
+                                                Style="{StaticResource PrimaryButtonStyle}"
+                                                Click="OverlayToggleButton_Click" Content="ON" />
                                     </Grid>
-                                </Border>
+                                    <Grid Margin="0,9,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock VerticalAlignment="Center" Text="오버레이 위치 잠금" />
+                                        <Button x:Name="OverlayLockToggleButton" Grid.Column="1" Width="70" Height="30"
+                                                Click="OverlayLockToggleButton_Click" Content="ON" />
+                                    </Grid>
+                                    <Grid Margin="0,9,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="42" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock VerticalAlignment="Center" Text="투명도" />
+                                        <Slider x:Name="OverlayOpacitySlider" Grid.Column="1" Height="24"
+                                                Margin="10,0,7,0" Minimum="20" Maximum="100"
+                                                ValueChanged="OverlayOpacitySlider_ValueChanged" />
+                                        <TextBlock x:Name="OverlayOpacityText" Grid.Column="2"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}" Text="100%" />
+                                    </Grid>
+                                    <Button x:Name="OverlayPositionResetButton" Height="30" Margin="0,10,0,0"
+                                            Click="OverlayPositionResetButton_Click" Content="오버레이 위치 초기화" />
+                                </StackPanel>
                             </Grid>
-                        </StackPanel>
-                    </Border>
+                        </Border>
 
-                    <Border x:Name="AboutSection" Margin="0,14,0,0"
-                            Style="{StaticResource CardStyle}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock FontSize="11" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource AccentBrush}" Text="ABOUT" />
-                                <TextBlock Margin="0,6,0,0" FontSize="19" FontWeight="SemiBold" Text="MutePilot" />
-                                <TextBlock Margin="0,5,0,0" FontSize="12"
-                                           Foreground="{DynamicResource SecondaryTextBrush}"
-                                           Text="사용자 지정 단축키로 Windows와 앱별 오디오를 제어하는 데스크톱 유틸리티" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <TextBlock HorizontalAlignment="Right" FontSize="12"
-                                           Foreground="{DynamicResource SecondaryTextBrush}" Text="Version 0.8.0" />
-                                <TextBlock Margin="0,5,0,0" HorizontalAlignment="Right"
-                                           FontWeight="SemiBold" Text="Made by 유성우" />
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
+                        <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}" Padding="17">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.2*" />
+                                    <ColumnDefinition Width="1*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,22,0">
+                                    <TextBlock FontSize="10.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AccentBrush}" Text="EXECUTION" />
+                                    <TextBlock Margin="0,5,0,0" FontSize="18" FontWeight="SemiBold" Text="실행 설정" />
+                                    <TextBlock Margin="0,5,0,0" FontSize="11"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               Text="관리자 프로그램에서 단독 키를 사용하려면 MutePilot도 관리자 권한이 필요할 수 있습니다."
+                                               TextWrapping="Wrap" />
+                                    <TextBlock x:Name="StartupDetailText" Margin="0,6,0,0" FontSize="10.5"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="StartupErrorText" Margin="0,7,0,0" FontSize="11"
+                                               Foreground="{DynamicResource DangerBrush}"
+                                               TextWrapping="Wrap" Visibility="Collapsed" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock VerticalAlignment="Center"
+                                                   Text="Windows 로그인 시 자동 실행" />
+                                        <Button x:Name="StartupToggleButton" Grid.Column="1" Width="70" Height="30"
+                                                Style="{StaticResource PrimaryButtonStyle}"
+                                                Click="StartupToggleButton_Click" Content="확인 중" IsEnabled="False" />
+                                    </Grid>
+                                    <TextBlock x:Name="PrivilegeStatusText" Margin="0,11,0,0" FontSize="11.5"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               Text="현재 실행 권한: 확인 중" />
+                                    <Button x:Name="RestartAsAdministratorButton" Height="31" Margin="0,8,0,0"
+                                            Click="RestartAsAdministratorButton_Click"
+                                            Content="MutePilot을 관리자 권한으로 재시작" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}" Padding="16">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock FontSize="10.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AccentBrush}" Text="ABOUT" />
+                                    <TextBlock Margin="0,4,0,0" FontSize="17" FontWeight="SemiBold" Text="MutePilot" />
+                                    <TextBlock Margin="0,3,0,0" FontSize="11"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               Text="Windows 앱별 음소거 및 볼륨 프리셋 단축키 유틸리티" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock HorizontalAlignment="Right" FontSize="11"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" Text="Version v0.8.0" />
+                                    <TextBlock Margin="0,4,0,0" HorizontalAlignment="Right"
+                                               FontWeight="SemiBold" Text="Made by 유성우" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

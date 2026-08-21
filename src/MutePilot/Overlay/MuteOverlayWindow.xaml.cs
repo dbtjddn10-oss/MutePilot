@@ -12,7 +12,6 @@ public partial class MuteOverlayWindow : Window
 {
     private const int GwlExStyle = -20;
     private const int WmNcHitTest = 0x0084;
-    private const int HtClient = 1;
     private const int HtTransparent = -1;
     private const int WsExTransparent = 0x00000020;
     private const int WsExToolWindow = 0x00000080;
@@ -40,6 +39,10 @@ public partial class MuteOverlayWindow : Window
     }
 
     public event EventHandler<OverlayConfigurationChangedEventArgs>? ConfigurationChanged;
+
+    public event EventHandler? CloseRequested;
+
+    public event EventHandler<OverlayMuteToggleRequestedEventArgs>? MuteToggleRequested;
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -75,10 +78,13 @@ public partial class MuteOverlayWindow : Window
         if (hiddenCount > 0)
         {
             rows.Add(new OverlayTargetRow(
+                string.Empty,
                 $"외 {hiddenCount}개",
                 string.Empty,
+                string.Empty,
                 Brushes.Gray,
-                0.65));
+                0.65,
+                false));
         }
 
         TargetItemsControl.ItemsSource = rows;
@@ -157,6 +163,24 @@ public partial class MuteOverlayWindow : Window
         RaiseConfigurationChanged();
     }
 
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_isFullscreenDisplayOnly)
+        {
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private void AudioToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_isFullscreenDisplayOnly && sender is System.Windows.Controls.Button { Tag: string targetId })
+        {
+            MuteToggleRequested?.Invoke(
+                this,
+                new OverlayMuteToggleRequestedEventArgs(targetId));
+        }
+    }
+
     private void DragSurface_DragDelta(object sender, DragDeltaEventArgs e)
     {
         if (_isFullscreenDisplayOnly || _isLocked)
@@ -223,16 +247,21 @@ public partial class MuteOverlayWindow : Window
 
     private void ApplyInteractionState()
     {
-        if (LockButton is null || ConfigurationPanel is null || DragSurface is null)
+        if (HeaderLockButton is null || CloseButton is null || ConfigurationPanel is null ||
+            DragSurface is null || TargetItemsControl is null)
         {
             return;
         }
 
-        LockButton.Visibility = _isFullscreenDisplayOnly
+        HeaderLockButton.Visibility = _isFullscreenDisplayOnly
             ? Visibility.Collapsed
             : Visibility.Visible;
-        LockButton.Content = _isLocked ? "🔒" : "🔓";
-        LockButton.ToolTip = _isLocked ? "오버레이 잠금 해제" : "오버레이 잠금";
+        CloseButton.Visibility = _isFullscreenDisplayOnly
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        HeaderLockButton.Content = _isLocked ? "🔒" : "🔓";
+        HeaderLockButton.ToolTip = _isLocked ? "오버레이 잠금 해제" : "오버레이 잠금";
+        TargetItemsControl.IsHitTestVisible = !_isFullscreenDisplayOnly;
         ConfigurationPanel.Visibility = !_isFullscreenDisplayOnly && !_isLocked
             ? Visibility.Visible
             : Visibility.Collapsed;
@@ -276,30 +305,7 @@ public partial class MuteOverlayWindow : Window
             return HtTransparent;
         }
 
-        if (!_isLocked)
-        {
-            return nint.Zero;
-        }
-
-        handled = true;
-        return IsPointOverLockButton(longParameter) ? HtClient : HtTransparent;
-    }
-
-    private bool IsPointOverLockButton(nint longParameter)
-    {
-        if (LockButton.Visibility != Visibility.Visible)
-        {
-            return false;
-        }
-
-        var value = longParameter.ToInt64();
-        var screenPoint = new Point(
-            unchecked((short)(value & 0xFFFF)),
-            unchecked((short)((value >> 16) & 0xFFFF)));
-        var windowPoint = PointFromScreen(screenPoint);
-        var buttonOrigin = LockButton.TranslatePoint(new Point(0, 0), this);
-        var buttonBounds = new Rect(buttonOrigin, LockButton.RenderSize);
-        return buttonBounds.Contains(windowPoint);
+        return nint.Zero;
     }
 
     private void RaiseConfigurationChanged()
@@ -350,24 +356,33 @@ public partial class MuteOverlayWindow : Window
         return target.Status switch
         {
             OverlayTargetStatus.Muted => new OverlayTargetRow(
+                target.TargetId,
                 target.DisplayName,
-                string.IsNullOrEmpty(volumeText) ? "🔇" : $"🔇 {volumeText}",
+                volumeText,
+                "🔇",
                 Brushes.LightCoral,
-                1),
+                1,
+                true),
             OverlayTargetStatus.Unmuted => new OverlayTargetRow(
+                target.TargetId,
                 target.DisplayName,
-                string.IsNullOrEmpty(volumeText) ? "🔊" : $"🔊 {volumeText}",
+                volumeText,
+                "🔊",
                 Brushes.LightGreen,
-                1),
+                1,
+                true),
             OverlayTargetStatus.Mixed => new OverlayTargetRow(
+                target.TargetId,
                 target.DisplayName,
-                string.IsNullOrEmpty(volumeText) ? "일부 음소거" : $"일부 음소거 · {volumeText}",
+                string.IsNullOrEmpty(volumeText) ? "혼합" : $"혼합 · {volumeText}",
+                "◐",
                 Brushes.Khaki,
-                1),
+                1,
+                true),
             OverlayTargetStatus.NotRunning => new OverlayTargetRow(
-                target.DisplayName, "실행 안 됨", Brushes.Gray, 0.68),
+                target.TargetId, target.DisplayName, "실행 안 됨", "—", Brushes.Gray, 0.68, false),
             _ => new OverlayTargetRow(
-                target.DisplayName, "확인 중", Brushes.Gray, 0.68)
+                target.TargetId, target.DisplayName, "확인 중", "—", Brushes.Gray, 0.68, false)
         };
     }
 
@@ -435,8 +450,11 @@ public partial class MuteOverlayWindow : Window
     }
 
     private sealed record OverlayTargetRow(
+        string TargetId,
         string Name,
         string StatusText,
+        string ToggleGlyph,
         Brush StatusBrush,
-        double Opacity);
+        double Opacity,
+        bool CanToggle);
 }

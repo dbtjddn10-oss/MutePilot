@@ -4,9 +4,11 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 using MutePilot.Audio;
 using MutePilot.Hotkeys;
+using MutePilot.Icons;
 using MutePilot.Overlay;
 using MutePilot.Security;
 using MutePilot.Settings;
@@ -27,6 +29,7 @@ public partial class MainWindow : Window
     private readonly ISettingsService _settingsService = new SettingsService();
     private readonly IStartupService _startupService = new StartupService();
     private readonly IPrivilegeService _privilegeService = new PrivilegeService();
+    private readonly IApplicationIconService _applicationIconService = new ApplicationIconService();
     private readonly IOverlayService _overlayService;
     private readonly ITrayService _trayService;
     private readonly DispatcherTimer _overlayRefreshTimer;
@@ -51,9 +54,12 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        FitWindowToWorkArea();
         _volumePresetToggleService = new VolumePresetToggleService(_audioService);
         _overlayService = new OverlayService(Dispatcher);
         _overlayService.ConfigurationChanged += OverlayService_ConfigurationChanged;
+        _overlayService.CloseRequested += OverlayService_CloseRequested;
+        _overlayService.MuteToggleRequested += OverlayService_MuteToggleRequested;
         _trayService = new TrayService();
         _trayService.OpenRequested += TrayService_OpenRequested;
         _trayService.OverlayToggleRequested += TrayService_OverlayToggleRequested;
@@ -150,6 +156,8 @@ public partial class MainWindow : Window
         _hotkeyService.Dispose();
         _volumePresetToggleService.Clear();
         _overlayService.ConfigurationChanged -= OverlayService_ConfigurationChanged;
+        _overlayService.CloseRequested -= OverlayService_CloseRequested;
+        _overlayService.MuteToggleRequested -= OverlayService_MuteToggleRequested;
         _overlayService.Dispose();
         _trayService.OpenRequested -= TrayService_OpenRequested;
         _trayService.OverlayToggleRequested -= TrayService_OverlayToggleRequested;
@@ -173,6 +181,18 @@ public partial class MainWindow : Window
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e) => StartServices();
 
+    private void FitWindowToWorkArea()
+    {
+        const double margin = 24;
+        var workArea = SystemParameters.WorkArea;
+        var safeWidth = Math.Max(640, workArea.Width - margin);
+        var safeHeight = Math.Max(520, workArea.Height - margin);
+        MinWidth = Math.Min(MinWidth, safeWidth);
+        MinHeight = Math.Min(MinHeight, safeHeight);
+        Width = Math.Min(Width, safeWidth);
+        Height = Math.Min(Height, safeHeight);
+    }
+
     private void SidebarNavigationButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string sectionName })
@@ -180,14 +200,23 @@ public partial class MainWindow : Window
             return;
         }
 
-        var target = sectionName switch
-        {
-            "Applications" => ApplicationsSection,
-            "Settings" => SettingsSection,
-            "About" => AboutSection,
-            _ => HomeSection
-        };
-        target.BringIntoView();
+        ShowPage(string.Equals(sectionName, "Settings", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void ShowPage(bool showSettings)
+    {
+        DashboardPage.Visibility = showSettings ? Visibility.Collapsed : Visibility.Visible;
+        SettingsPage.Visibility = showSettings ? Visibility.Visible : Visibility.Collapsed;
+        DashboardNavigationButton.Background = showSettings
+            ? Brushes.Transparent
+            : FindResource("SidebarSelectedBrush") as Brush;
+        SettingsNavigationButton.Background = showSettings
+            ? FindResource("SidebarSelectedBrush") as Brush
+            : Brushes.Transparent;
+        PageTitleText.Text = showSettings ? "실행 설정" : "오디오 대시보드";
+        PageDescriptionText.Text = showSettings
+            ? "오버레이, Windows 시작, 실행 권한과 앱 정보를 관리합니다."
+            : "마스터와 애플리케이션 오디오를 한곳에서 관리합니다.";
     }
 
     private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -347,6 +376,62 @@ public partial class MainWindow : Window
     private void OverlayToggleButton_Click(object sender, RoutedEventArgs e) =>
         SetOverlayEnabled(!_settings.OverlayEnabled);
 
+    private void OverlayQuickButton_Click(object sender, RoutedEventArgs e) =>
+        SetOverlayEnabled(!_settings.OverlayEnabled);
+
+    private void OverlayLockToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        var nextSettings = CloneSettings(_settings);
+        nextSettings.OverlayLocked = !_settings.OverlayLocked;
+        SaveOverlaySettings(nextSettings);
+    }
+
+    private void OverlayOpacitySlider_ValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_settingsLoaded || _isApplyingOverlayConfiguration)
+        {
+            return;
+        }
+
+        var nextSettings = CloneSettings(_settings);
+        nextSettings.OverlayOpacity = Math.Clamp(e.NewValue / 100, 0.2, 1.0);
+        SaveOverlaySettings(nextSettings);
+    }
+
+    private void SaveOverlaySettings(AppSettings nextSettings)
+    {
+        var previousSettings = CloneSettings(_settings);
+        _settings = nextSettings;
+
+        try
+        {
+            _settingsService.Save(_settings);
+            _isApplyingOverlayConfiguration = true;
+
+            try
+            {
+                _overlayService.Configure(CreateOverlayConfiguration(_settings));
+            }
+            finally
+            {
+                _isApplyingOverlayConfiguration = false;
+            }
+
+            UpdateOverlaySettingDisplay();
+            HotkeyErrorText.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            _settings = previousSettings;
+            _overlayService.Configure(CreateOverlayConfiguration(_settings));
+            UpdateOverlaySettingDisplay();
+            ShowHotkeyError("오버레이 설정을 저장하지 못해 이전 값으로 되돌렸습니다.");
+        }
+    }
+
     private void SetOverlayEnabled(bool isEnabled)
     {
         var previousSettings = CloneSettings(_settings);
@@ -397,6 +482,39 @@ public partial class MainWindow : Window
     }
 
     private void RestartAsAdministratorButton_Click(object sender, RoutedEventArgs e)
+        => RestartAsAdministrator();
+
+    private void AdminQuickButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_privilegeService.IsElevated)
+        {
+            var answer = MessageBox.Show(
+                "일반 권한으로 바꾸려면 MutePilot을 다시 시작해야 합니다. 계속할까요?",
+                "일반 권한으로 재시작",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+
+            if (answer == MessageBoxResult.Yes)
+            {
+                RestartAsStandardUser();
+            }
+
+            return;
+        }
+
+        var elevationAnswer = MessageBox.Show(
+            "관리자 권한으로 바꾸려면 MutePilot을 다시 시작해야 합니다. 계속할까요?",
+            "관리자 권한으로 재시작",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Information);
+
+        if (elevationAnswer == MessageBoxResult.Yes)
+        {
+            RestartAsAdministrator();
+        }
+    }
+
+    private void RestartAsAdministrator()
     {
         StartupErrorText.Visibility = Visibility.Collapsed;
         var result = _privilegeService.RestartAsAdministrator(!IsVisible);
@@ -416,6 +534,70 @@ public partial class MainWindow : Window
         StartupErrorText.Text = result.Message ??
             "MutePilot을 관리자 권한으로 재시작하지 못했습니다.";
         StartupErrorText.Visibility = Visibility.Visible;
+    }
+
+    private void RestartAsStandardUser()
+    {
+        StartupErrorText.Visibility = Visibility.Collapsed;
+        var result = _privilegeService.RestartAsStandardUser(!IsVisible);
+
+        if (result.Outcome == StandardRestartOutcome.Started)
+        {
+            RequestRealExit();
+            return;
+        }
+
+        if (result.Outcome == StandardRestartOutcome.AlreadyStandard)
+        {
+            UpdatePrivilegeStatus();
+            return;
+        }
+
+        StartupErrorText.Text = result.Message ??
+            "MutePilot을 일반 권한으로 재시작하지 못했습니다.";
+        StartupErrorText.Visibility = Visibility.Visible;
+        ShowPage(true);
+    }
+
+    private void OverlayService_CloseRequested(object? sender, EventArgs e) =>
+        RunOnUiThread(() => SetOverlayEnabled(false));
+
+    private void OverlayService_MuteToggleRequested(
+        object? sender,
+        OverlayMuteToggleRequestedEventArgs e) =>
+        RunOnUiThread(() => ToggleMuteFromOverlay(e.TargetId));
+
+    private void ToggleMuteFromOverlay(string targetId)
+    {
+        try
+        {
+            if (string.Equals(targetId, HotkeyBinding.MasterTargetId, StringComparison.OrdinalIgnoreCase))
+            {
+                _audioService.ToggleMasterMuteState();
+                RefreshMasterAudioState();
+                return;
+            }
+
+            var session = _activeApplicationSessions.FirstOrDefault(candidate => string.Equals(
+                HotkeyBinding.GetApplicationTargetId(candidate.ApplicationKey),
+                targetId,
+                StringComparison.OrdinalIgnoreCase));
+
+            if (session is null)
+            {
+                RefreshApplicationSessions();
+                return;
+            }
+
+            _audioService.ToggleApplicationMute(session.ApplicationKey);
+            RefreshApplicationSessions();
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            ShowHotkeyError("오버레이에서 음소거 상태를 변경하지 못했습니다.");
+            RefreshApplicationSessions();
+        }
     }
 
     private void TrayService_OpenRequested(object? sender, EventArgs e) =>
@@ -977,6 +1159,7 @@ public partial class MainWindow : Window
         return new ApplicationSessionItem(
             session.ApplicationKey,
             session.ApplicationName,
+            _applicationIconService.GetIcon(session.ApplicationKey, session.ProcessIds),
             $"PID: {string.Join(", ", session.ProcessIds)} · 세션 {session.SessionCount}개",
             session.HasMixedMuteState
                 ? "현재 상태: 일부 세션 음소거"
@@ -1002,6 +1185,7 @@ public partial class MainWindow : Window
         new(
             setting.ProcessName,
             setting.ProcessName,
+            _applicationIconService.GetIcon(setting.ProcessName, []),
             "저장된 앱 바인딩",
             "현재 상태: 실행 중이 아님",
             "현재 볼륨: 실행 중이 아님",
@@ -1270,6 +1454,7 @@ public partial class MainWindow : Window
         try
         {
             _settingsService.Save(_settings);
+            UpdateOverlaySettingDisplay();
             HotkeyErrorText.Visibility = Visibility.Collapsed;
         }
         catch (Exception exception)
@@ -1294,7 +1479,20 @@ public partial class MainWindow : Window
     private void UpdateOverlaySettingDisplay()
     {
         OverlayToggleButton.Content = _settings.OverlayEnabled ? "ON" : "OFF";
-        OverlayStatusChipText.Text = _settings.OverlayEnabled ? "오버레이 ON" : "오버레이 OFF";
+        OverlayQuickButton.Content = _settings.OverlayEnabled ? "오버레이 ON" : "오버레이 OFF";
+        OverlayLockToggleButton.Content = _settings.OverlayLocked ? "ON" : "OFF";
+        _isApplyingOverlayConfiguration = true;
+
+        try
+        {
+            OverlayOpacitySlider.Value = _settings.OverlayOpacity * 100;
+        }
+        finally
+        {
+            _isApplyingOverlayConfiguration = false;
+        }
+
+        OverlayOpacityText.Text = $"{Math.Round(_settings.OverlayOpacity * 100):0}%";
         OverlayToggleButton.ToolTip = _settings.OverlayEnabled
             ? "음소거 상태 오버레이를 끕니다."
             : "음소거 상태 오버레이를 켭니다.";
@@ -1346,10 +1544,14 @@ public partial class MainWindow : Window
         try
         {
             var isElevated = _privilegeService.IsElevated;
+            AdminQuickButton.IsEnabled = true;
             PrivilegeStatusText.Text = isElevated
                 ? "현재 실행 권한: 관리자 권한"
                 : "현재 실행 권한: 일반 권한";
-            PrivilegeStatusChipText.Text = isElevated ? "관리자 권한" : "일반 권한";
+            AdminQuickButton.Content = isElevated ? "🛡 관리자 ON" : "🛡 관리자 OFF";
+            AdminQuickButton.ToolTip = isElevated
+                ? "일반 권한으로 재시작"
+                : "관리자 권한으로 재시작";
             RestartAsAdministratorButton.Content = "MutePilot을 관리자 권한으로 재시작";
             RestartAsAdministratorButton.IsEnabled = !isElevated;
         }
@@ -1357,7 +1559,8 @@ public partial class MainWindow : Window
         {
             Debug.WriteLine(exception);
             PrivilegeStatusText.Text = "현재 실행 권한: 확인할 수 없음";
-            PrivilegeStatusChipText.Text = "권한 확인 실패";
+            AdminQuickButton.Content = "🛡 권한 확인 실패";
+            AdminQuickButton.IsEnabled = false;
             RestartAsAdministratorButton.IsEnabled = false;
         }
     }
@@ -1592,6 +1795,7 @@ public partial class MainWindow : Window
     private sealed record ApplicationSessionItem(
         string ApplicationKey,
         string ApplicationName,
+        ImageSource Icon,
         string ProcessIdText,
         string StatusText,
         string VolumeText,

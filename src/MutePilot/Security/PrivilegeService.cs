@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Security.Principal;
+using System.Runtime.InteropServices;
 
 namespace MutePilot.Security;
 
@@ -71,6 +73,62 @@ public sealed class PrivilegeService : IPrivilegeService
             return new ElevationRestartResult(
                 ElevationRestartOutcome.Failed,
                 "MutePilot을 관리자 권한으로 재시작하지 못했습니다.");
+        }
+    }
+
+    public StandardRestartResult RestartAsStandardUser(bool startInBackground)
+    {
+        if (!IsElevated)
+        {
+            return new StandardRestartResult(StandardRestartOutcome.AlreadyStandard);
+        }
+
+        var processPath = Environment.ProcessPath;
+
+        if (string.IsNullOrWhiteSpace(processPath))
+        {
+            return new StandardRestartResult(
+                StandardRestartOutcome.Failed,
+                "현재 MutePilot 실행 파일 경로를 확인하지 못했습니다.");
+        }
+
+        object? shell = null;
+
+        try
+        {
+            var shellType = Type.GetTypeFromProgID("Shell.Application") ??
+                throw new InvalidOperationException("Windows Shell을 찾을 수 없습니다.");
+            shell = Activator.CreateInstance(shellType) ??
+                throw new InvalidOperationException("Windows Shell을 시작할 수 없습니다.");
+            var handoffToken = Guid.NewGuid();
+            var arguments = $"--elevated-restart {handoffToken:D}";
+
+            if (startInBackground)
+            {
+                arguments += " --background";
+            }
+
+            shellType.InvokeMember(
+                "ShellExecute",
+                System.Reflection.BindingFlags.InvokeMethod,
+                null,
+                shell,
+                [processPath, arguments, Path.GetDirectoryName(processPath) ?? string.Empty, "open", 1]);
+            return new StandardRestartResult(StandardRestartOutcome.Started);
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+            return new StandardRestartResult(
+                StandardRestartOutcome.Failed,
+                "일반 권한 MutePilot 시작을 Windows Shell에 요청하지 못했습니다.");
+        }
+        finally
+        {
+            if (shell is not null && Marshal.IsComObject(shell))
+            {
+                Marshal.FinalReleaseComObject(shell);
+            }
         }
     }
 }

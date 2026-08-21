@@ -4,6 +4,10 @@ public interface IOverlayService : IDisposable
 {
     event EventHandler<OverlayConfigurationChangedEventArgs>? ConfigurationChanged;
 
+    event EventHandler? CloseRequested;
+
+    event EventHandler<OverlayMuteToggleRequestedEventArgs>? MuteToggleRequested;
+
     bool IsEnabled { get; }
 
     bool IsFullscreenDisplayOnly { get; }
@@ -27,6 +31,11 @@ public sealed class OverlayConfigurationChangedEventArgs(
     OverlayConfiguration configuration) : EventArgs
 {
     public OverlayConfiguration Configuration { get; } = configuration;
+}
+
+public sealed class OverlayMuteToggleRequestedEventArgs(string targetId) : EventArgs
+{
+    public string TargetId { get; } = targetId;
 }
 
 public sealed record OverlayTargetState(

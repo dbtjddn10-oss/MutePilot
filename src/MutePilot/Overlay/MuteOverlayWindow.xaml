@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MutePilot Overlay"
-        Width="226"
+        Width="252"
         SizeToContent="Height"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -28,9 +28,10 @@
                     BorderThickness="1"
                     CornerRadius="7">
                 <StackPanel>
-                    <Grid Height="16" Margin="2,0,0,5">
+                    <Grid Height="20" Margin="2,0,0,5">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="22" />
                             <ColumnDefinition Width="22" />
                         </Grid.ColumnDefinitions>
                         <Grid Grid.Column="0">
@@ -52,6 +53,16 @@
                                 </Thumb.Template>
                             </Thumb>
                         </Grid>
+                        <Button x:Name="HeaderLockButton" Grid.Column="1"
+                                Width="20" Height="18" Margin="0,0,2,0" Padding="0"
+                                BorderThickness="0" Background="#303641" Foreground="#E5E7EB"
+                                Focusable="False" FontFamily="Segoe UI Emoji" FontSize="9"
+                                Click="LockButton_Click" Content="🔒" ToolTip="오버레이 잠금 해제" />
+                        <Button x:Name="CloseButton" Grid.Column="2"
+                                Width="20" Height="18" Padding="0" BorderThickness="0"
+                                Background="#303641" Foreground="#E5E7EB" Focusable="False"
+                                FontSize="13" Click="CloseButton_Click" Content="×"
+                                ToolTip="오버레이 끄기" />
                     </Grid>
                     <Border Height="1" Margin="0,0,0,3" Background="#303641" />
                     <ItemsControl x:Name="TargetItemsControl">
@@ -60,6 +71,7 @@
                                 <Grid Height="23">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="26" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Margin="2,0,8,0"
@@ -69,9 +81,17 @@
                                                Opacity="{Binding Opacity}"
                                                Text="{Binding Name}"
                                                TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="1"
+                                    <Button Grid.Column="1" Width="22" Height="20" Padding="0"
+                                            BorderThickness="0" Background="#303641"
+                                            Foreground="{Binding StatusBrush}" Focusable="False"
+                                            FontFamily="Segoe UI Emoji" FontSize="10.5"
+                                            Click="AudioToggleButton_Click"
+                                            Content="{Binding ToggleGlyph}"
+                                            IsEnabled="{Binding CanToggle}"
+                                            Tag="{Binding TargetId}"
+                                            ToolTip="음소거 상태 전환" />
+                                    <TextBlock Grid.Column="2"
                                                VerticalAlignment="Center"
-                                               FontFamily="Segoe UI, Segoe UI Emoji"
                                                FontSize="10.5"
                                                Foreground="{Binding StatusBrush}"
                                                Opacity="{Binding Opacity}"
@@ -83,21 +103,6 @@
                 </StackPanel>
             </Border>
 
-            <Button x:Name="LockButton"
-                    Width="22" Height="20"
-                    Margin="0,5,6,0"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Padding="0"
-                    BorderThickness="0"
-                    Background="#303641"
-                    Foreground="#E5E7EB"
-                    Focusable="False"
-                    FontFamily="Segoe UI Emoji"
-                    FontSize="10"
-                    Click="LockButton_Click"
-                    Content="🔒"
-                    ToolTip="오버레이 잠금 해제" />
         </Grid>
 
         <Border x:Name="ConfigurationPanel"
